@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RPG Batalla Telegram</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { background-color: #1a1a1a; color: white; font-family: 'Verdana', sans-serif; text-align: center; padding: 20px; }
+        .container { max-width: 400px; margin: 0 auto; }
+        
+        /* Tarjetas de Personaje */
+        .battle-area { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .char { width: 45%; padding: 10px; background: #333; border-radius: 10px; border: 2px solid #555; }
+        .char img { width: 50px; height: 50px; }
+        
+        /* Barras de vida */
+        .hp-bar { width: 100%; background: #555; height: 10px; border-radius: 5px; margin-top: 5px; }
+        .hp-fill { height: 100%; background: #e74c3c; width: 100%; border-radius: 5px; transition: width 0.2s; }
+        
+        /* Botones e Info */
+        .stats { background: #2c3e50; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+        button { width: 100%; padding: 15px; font-size: 18px; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .btn-attack { background: #e67e22; color: white; box-shadow: 0 4px #d35400; }
+        .btn-attack:active { transform: translateY(2px); box-shadow: 0 0px #d35400; }
+        .btn-disabled { background: #7f8c8d; cursor: not-allowed; box-shadow: none; }
+        
+        #log { margin-top: 20px; color: #aaa; font-size: 14px; min-height: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>⚔️ Zona de Combate</h2>
+    
+    <div class="stats">
+        <span>💰 Oro: <span id="gold-display">0</span></span> | 
+        <span>🗡 Nivel Espada: <span id="sword-display">1</span></span>
+    </div>
+
+    <div class="battle-area">
+        <div class="char">
+            <div>👤 Tú</div>
+            <div class="hp-bar"><div id="player-hp" class="hp-fill"></div></div>
+        </div>
+        <div class="char">
+            <div>👹 Orco</div>
+            <div class="hp-bar"><div id="enemy-hp" class="hp-fill"></div></div>
+        </div>
+    </div>
+
+    <div id="log">¡Listo para pelear!</div>
+    <button id="btn-action" class="btn-attack" onclick="atacar()">⚔️ ATACAR</button>
+</div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.expand(); // Pantalla completa
+
+    // --- CONFIGURACIÓN ---
+    // ¡AQUÍ PEGAS TU URL DE NGROK! (No olvides el /api al final si tus rutas lo usan)
+    const API_URL = "https://pseudomoralistic-catharine-mannishly.ngrok-free.dev"; 
+    
+    // Datos simulados si no estamos en Telegram (para probar en navegador PC)
+    let userId = tg.initDataUnsafe?.user?.id || "test_user_123"; 
+
+    // Estado del juego
+    let player = { maxHp: 100, hp: 100, dmg: 10 };
+    let enemy = { maxHp: 80, hp: 80, dmg: 5 };
+    let isFighting = true;
+
+    // 1. INICIO: Cargar datos del servidor
+    async function initGame() {
+        try {
+            let response = await fetch(`${API_URL}/user/${userId}`);
+            let data = await response.json();
+            
+            // Actualizar UI
+            document.getElementById('gold-display').innerText = data.gold;
+            document.getElementById('sword-display').innerText = data.sword_level;
+            
+            // Ajustar daño según nivel de espada (Lógica simple)
+            player.dmg = 10 + (data.sword_level * 2);
+            
+        } catch (e) {
+            document.getElementById('log').innerText = "Error conectando al servidor (Backend off?)";
+        }
+    }
+
+    // 2. LÓGICA DE COMBATE
+    function atacar() {
+        if (!isFighting) return resetFight();
+
+        // Turno Jugador
+        enemy.hp -= player.dmg;
+        updateBars();
+        document.getElementById('log').innerText = `¡Golpeas por ${player.dmg} daño!`;
+
+        if (enemy.hp <= 0) {
+            winFight();
+            return;
+        }
+
+        // Turno Enemigo (pequeño delay para realismo)
+        setTimeout(() => {
+            player.hp -= enemy.dmg;
+            updateBars();
+            if (player.hp <= 0) {
+                document.getElementById('log').innerText = "Has sido derrotado...";
+                isFighting = false;
+                document.getElementById('btn-action').innerText = "💀 Revivir";
+            }
+        }, 300);
+    }
+
+    // 3. VICTORIA Y GUARDADO
+    async function winFight() {
+        isFighting = false;
+        document.getElementById('log').innerText = "¡VICTORIA! +10 Monedas";
+        document.getElementById('btn-action').innerText = "🔄 Buscar otro enemigo";
+
+        // Enviar datos al backend
+        try {
+            let response = await fetch(`${API_URL}/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, gold_earned: 10 })
+            });
+            let result = await response.json();
+            document.getElementById('gold-display').innerText = result.new_gold;
+        } catch (e) {
+            console.error("Error guardando progreso");
+        }
+    }
+
+    function resetFight() {
+        player.hp = player.maxHp;
+        enemy.hp = enemy.maxHp;
+        isFighting = true;
+        updateBars();
+        document.getElementById('btn-action').innerText = "⚔️ ATACAR";
+        document.getElementById('log').innerText = "¡Un nuevo enemigo aparece!";
+    }
+
+    function updateBars() {
+        let pPct = (player.hp / player.maxHp) * 100;
+        let ePct = (enemy.hp / enemy.maxHp) * 100;
+        document.getElementById('player-hp').style.width = Math.max(0, pPct) + "%";
+        document.getElementById('enemy-hp').style.width = Math.max(0, ePct) + "%";
+    }
+
+    // Arrancar juego
+    initGame();
+
+</script>
+</body>
+</html>
