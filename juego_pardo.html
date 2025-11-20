@@ -1033,6 +1033,9 @@
                 dmg: enemy.baseDmg + lvl
             };
             
+            // REINICIAR VIDA DEL JUGADOR AL 100%
+            gameState.user.stats.health = gameState.user.stats.health;
+            
             gameState.in_battle = true;
             
             document.getElementById('enemySprite').textContent = enemy.emoji;
@@ -1098,8 +1101,16 @@
             
             if (victory) {
                 gameState.user.level++;
+                
+                // INCREMENTO DE STATS POR NIVEL (+5% cada stat)
+                gameState.user.stats.health = Math.round(gameState.user.stats.health * 1.05);
+                gameState.user.stats.attack = Math.round(gameState.user.stats.attack * 1.05);
+                gameState.user.stats.defense = Math.round(gameState.user.stats.defense * 1.05);
+                gameState.user.stats.speed = Math.round(gameState.user.stats.speed * 1.05);
+                gameState.user.stats.crit_chance = Math.round(gameState.user.stats.crit_chance * 1.05 * 10) / 10;
+                
                 goldReward = 50 + gameState.current_enemy.level * 10;
-                xpReward = 10 + gameState.current_enemy.level * 2;
+                xpReward = 25 + gameState.current_enemy.level * 5; // MÁS PUNTOS POR VICTORIA
                 
                 gameState.user.gold += goldReward;
                 gameState.user.airdrop_points += xpReward;
@@ -1114,12 +1125,15 @@
                 document.getElementById('modalMessage').innerHTML = `
                     <div style="text-align: center; font-size: 18px; color: #44ff44;">
                         <div>✅ ¡VICTORIA!</div>
-                        <div style="margin-top: 10px;">+${goldReward} Oro</div>
+                        <div style="margin-top: 10px;">Nivel: ${gameState.user.level}</div>
+                        <div style="margin-top: 5px;">+${goldReward} Oro</div>
                         <div>+${xpReward} Puntos</div>
+                        <div style="margin-top: 10px; font-size: 13px; color: #00ff88;">
+                            ⚔️ ${gameState.user.stats.attack} | 🛡️ ${gameState.user.stats.defense} | ❤️ ${gameState.user.stats.health}
+                        </div>
                     </div>
                 `;
             } else {
-                gameState.user.stats.health = gameState.user.stats.health;
                 gameState.user.stats_total.total_defeats++;
                 gameState.user.stats_total.current_streak = 0;
                 
@@ -1128,13 +1142,17 @@
                     <div style="text-align: center; font-size: 18px; color: #ff4444;">
                         <div>❌ ¡DERROTA!</div>
                         <div style="margin-top: 10px;">Intenta de nuevo</div>
+                        <div style="margin-top: 5px; font-size: 12px; color: #aaa;">
+                            Victorias: ${gameState.user.stats_total.total_victories}
+                        </div>
                     </div>
                 `;
             }
             
-            // Reset batalla
+            // Reset batalla - RESTAURAR VIDA AL MÁXIMO
             gameState.current_enemy = null;
             gameState.user.stats.health = gameState.user.stats.health;
+            
             document.getElementById('btnStart').style.display = 'block';
             document.getElementById('btnAttack').style.display = 'none';
             document.getElementById('enemySelect').style.display = 'block';
@@ -1151,17 +1169,39 @@
         }
 
         // ========== MODULE: CITY SYSTEM ==========
-        function farmRewards(building) {
-            const rewards = {
-                granja: { gold: 50, points: 0 },
-                mina: { gold: 100, points: 0 },
-                templo: { gold: 0, points: 100 },
-                torre: { gold: 150, points: 0 },
-                castillo: { gold: 300, points: 0 },
-                tienda: { gold: 0, points: 0 }
-            };
+        const BUILDING_COOLDOWNS = {
+            granja: { gold: 50, points: 0, lastClaim: 0, cooldown: 3600000 }, // 1 hora en ms
+            mina: { gold: 100, points: 0, lastClaim: 0, cooldown: 3600000 },
+            templo: { gold: 0, points: 100, lastClaim: 0, cooldown: 3600000 },
+            torre: { gold: 150, points: 0, lastClaim: 0, cooldown: 3600000 },
+            castillo: { gold: 300, points: 0, lastClaim: 0, cooldown: 3600000 },
+            tienda: { gold: 0, points: 0, lastClaim: 0, cooldown: 3600000 }
+        };
+
+        function getTimeUntilClaim(building) {
+            const now = Date.now();
+            const lastClaim = BUILDING_COOLDOWNS[building].lastClaim;
+            const cooldown = BUILDING_COOLDOWNS[building].cooldown;
+            const timeLeft = lastClaim + cooldown - now;
             
-            const reward = rewards[building];
+            if (timeLeft <= 0) return 0;
+            
+            const minutes = Math.ceil(timeLeft / 60000);
+            return minutes;
+        }
+
+        function canClaimBuilding(building) {
+            return getTimeUntilClaim(building) <= 0;
+        }
+
+        function farmRewards(building) {
+            if (!canClaimBuilding(building)) {
+                const timeLeft = getTimeUntilClaim(building);
+                alert(`⏳ Debes esperar ${timeLeft} minutos para recolectar de nuevo`);
+                return;
+            }
+
+            const reward = BUILDING_COOLDOWNS[building];
             
             if (reward.gold === 0 && reward.points === 0) {
                 alert('🏪 Tienda disponible próximamente');
@@ -1171,8 +1211,11 @@
             gameState.user.gold += reward.gold;
             gameState.user.airdrop_points += reward.points;
             
+            // Guardar tiempo de última recolección
+            BUILDING_COOLDOWNS[building].lastClaim = Date.now();
+            
             updateUI();
-            alert(`🎉 ¡Farmeo completado!\n+${reward.gold} 💰\n+${reward.points} ✨`);
+            alert(`🎉 ¡Recolección exitosa!\n+${reward.gold} 💰\n+${reward.points} ✨\nProxima recolección en 1 hora`);
         }
 
         // ========== MODULE: CHARACTER SYSTEM ==========
