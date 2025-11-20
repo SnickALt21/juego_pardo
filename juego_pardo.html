@@ -3,155 +3,792 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RPG Batalla Telegram</title>
+    <title>⚔️ Pardo RPG - Telegram</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { background-color: #1a1a1a; color: white; font-family: 'Verdana', sans-serif; text-align: center; padding: 20px; }
-        .container { max-width: 400px; margin: 0 auto; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        /* Tarjetas de Personaje */
-        .battle-area { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .char { width: 45%; padding: 10px; background: #333; border-radius: 10px; border: 2px solid #555; }
-        .char img { width: 50px; height: 50px; }
+        body { 
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white; 
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+            overflow: hidden;
+        }
         
-        /* Barras de vida */
-        .hp-bar { width: 100%; background: #555; height: 10px; border-radius: 5px; margin-top: 5px; }
-        .hp-fill { height: 100%; background: #e74c3c; width: 100%; border-radius: 5px; transition: width 0.2s; }
+        #gameContainer { 
+            width: 100vw; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column;
+            overflow: hidden;
+        }
         
-        /* Botones e Info */
-        .stats { background: #2c3e50; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
-        button { width: 100%; padding: 15px; font-size: 18px; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .btn-attack { background: #e67e22; color: white; box-shadow: 0 4px #d35400; }
-        .btn-attack:active { transform: translateY(2px); box-shadow: 0 0px #d35400; }
-        .btn-disabled { background: #7f8c8d; cursor: not-allowed; box-shadow: none; }
+        /* HEADER */
+        #header {
+            background: rgba(0,0,0,0.8);
+            border-bottom: 3px solid #00d4ff;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            z-index: 10;
+        }
         
-        #log { margin-top: 20px; color: #aaa; font-size: 14px; min-height: 20px; }
+        .header-left {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .header-left h1 {
+            font-size: 20px;
+            color: #00ff88;
+        }
+        
+        .header-right {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        
+        .stat-box {
+            background: rgba(0,100,200,0.3);
+            padding: 6px 12px;
+            border-radius: 5px;
+            border-left: 3px solid #00d4ff;
+            font-size: 12px;
+            min-width: 100px;
+        }
+        
+        .stat-box strong { 
+            color: #00ff88; 
+            font-size: 13px;
+        }
+
+        /* MAIN CONTENT */
+        #mainContent {
+            flex: 1;
+            display: flex;
+            gap: 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* SECCIONES */
+        .scene {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            display: none;
+            overflow-y: auto;
+        }
+
+        .scene.active { display: flex; }
+
+        /* COMBATE */
+        #combatScene {
+            background: rgba(0,0,0,0.3);
+        }
+
+        .battle-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            width: 100%;
+            max-width: 900px;
+            height: 450px;
+            background: rgba(0,0,0,0.6);
+            border: 3px solid #00ff88;
+            border-radius: 15px;
+            padding: 30px;
+            gap: 50px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 30px rgba(0,255,136,0.3);
+        }
+
+        .fighter {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sprite {
+            width: 150px;
+            height: 150px;
+            background: rgba(0,150,255,0.2);
+            border: 3px solid #00d4ff;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            animation: idle 2s infinite;
+            box-shadow: 0 0 20px rgba(0,212,255,0.3);
+        }
+
+        .sprite.attack {
+            animation: attack 0.6s;
+        }
+
+        @keyframes idle { 
+            0%, 100% { transform: translateY(0) scale(1); } 
+            50% { transform: translateY(-8px) scale(1.02); } 
+        }
+
+        @keyframes attack { 
+            0% { transform: scaleX(-1) translateX(-20px); }
+            50% { transform: scaleX(-1) translateX(15px); }
+            100% { transform: scaleX(-1) translateX(0); }
+        }
+
+        .hp-bar {
+            width: 180px;
+            height: 25px;
+            background: #333;
+            border: 2px solid #00ff88;
+            border-radius: 5px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .hp-fill { 
+            height: 100%; 
+            background: linear-gradient(90deg, #ff4444, #ffaa44);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .fighter-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00ff88;
+        }
+
+        .fighter-level {
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .vs-text {
+            text-align: center;
+            color: #00ff88;
+            font-size: 28px;
+            font-weight: bold;
+            padding: 0 20px;
+        }
+
+        /* CONTROLES COMBATE */
+        .combat-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0,50,150,0.8);
+            border: 2px solid #00d4ff;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        select option {
+            background: #16213e;
+            color: #fff;
+        }
+
+        /* BOTONES */
+        .btn {
+            background: linear-gradient(135deg, #00ff88, #00d4ff);
+            color: #000;
+            border: none;
+            padding: 14px 40px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            text-transform: uppercase;
+            box-shadow: 0 4px rgba(0,255,136,0.3);
+        }
+
+        .btn:hover { 
+            transform: translateY(-3px);
+            box-shadow: 0 6px rgba(0,255,136,0.5);
+        }
+
+        .btn:active { 
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* LOG */
+        #combatLog {
+            margin-top: 15px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            padding: 15px;
+            width: 100%;
+            max-width: 900px;
+            height: 80px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .log-entry { 
+            margin: 4px 0;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(0,255,136,0.2);
+        }
+
+        .log-damage { color: #ff4444; }
+        .log-heal { color: #44ff44; }
+        .log-victory { color: #ffff44; font-weight: bold; }
+        .log-normal { color: #aaa; }
+
+        /* CIUDAD */
+        #cityScene {
+            background: rgba(0,0,0,0.3);
+        }
+
+        .city-title {
+            font-size: 24px;
+            color: #00ff88;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .city-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .building {
+            background: rgba(0,100,200,0.4);
+            border: 2px solid #00d4ff;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 140px;
+        }
+
+        .building:hover {
+            background: rgba(0,150,255,0.6);
+            transform: translateY(-8px);
+            box-shadow: 0 8px 25px rgba(0,212,255,0.4);
+        }
+
+        .building:active {
+            transform: translateY(-4px);
+        }
+
+        .building-icon { 
+            font-size: 50px; 
+            margin-bottom: 10px;
+        }
+
+        .building-name { 
+            font-weight: bold; 
+            margin-bottom: 8px;
+            color: #00ff88;
+            font-size: 14px;
+        }
+
+        .building-reward { 
+            font-size: 12px; 
+            color: #00d4ff;
+        }
+
+        /* NAVEGACIÓN */
+        .nav-buttons {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .nav-btn {
+            padding: 10px 18px;
+            background: rgba(0,150,255,0.5);
+            border: 2px solid #00d4ff;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .nav-btn.active {
+            background: #00ff88;
+            color: #000;
+            border-color: #00ff88;
+        }
+
+        .nav-btn:hover { 
+            transform: scale(1.05);
+        }
+
+        /* SCROLL */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #00d4ff;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00ff88;
+        }
+
+        h2 {
+            color: #00ff88;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+
+        @media (max-width: 768px) {
+            .battle-container {
+                height: 350px;
+                gap: 20px;
+                padding: 15px;
+            }
+            
+            .sprite {
+                width: 100px;
+                height: 100px;
+                font-size: 50px;
+            }
+            
+            .hp-bar {
+                width: 120px;
+                height: 20px;
+            }
+            
+            .fighter-name {
+                font-size: 14px;
+            }
+            
+            .vs-text {
+                font-size: 20px;
+            }
+
+            .city-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
     </style>
 </head>
 <body>
+    <div id="gameContainer">
+        <!-- HEADER -->
+        <div id="header">
+            <div class="header-left">
+                <h1>⚔️ PARDO RPG</h1>
+            </div>
+            <div class="nav-buttons">
+                <button class="nav-btn active" onclick="switchScene('combat')">🔥 Combate</button>
+                <button class="nav-btn" onclick="switchScene('city')">🏘️ Ciudad</button>
+            </div>
+            <div class="header-right">
+                <div class="stat-box">💰 Oro: <strong id="goldDisplay">0</strong></div>
+                <div class="stat-box">✨ Puntos: <strong id="pointsDisplay">0</strong></div>
+                <div class="stat-box">⭐ Nivel: <strong id="levelDisplay">1</strong></div>
+                <div class="stat-box">❤️ HP: <strong id="hpDisplay">100/100</strong></div>
+            </div>
+        </div>
 
-<div class="container">
-    <h2>⚔️ Zona de Combate</h2>
-    
-    <div class="stats">
-        <span>💰 Oro: <span id="gold-display">0</span></span> | 
-        <span>🗡 Nivel Espada: <span id="sword-display">1</span></span>
+        <!-- MAIN CONTENT -->
+        <div id="mainContent">
+            <!-- ESCENA COMBATE -->
+            <div id="combatScene" class="scene active">
+                <h2>⚔️ ARENA DE BATALLA</h2>
+                
+                <div class="battle-container">
+                    <div class="fighter">
+                        <div class="sprite" id="playerSprite">🐱</div>
+                        <div class="fighter-name" id="playerName">Pardo</div>
+                        <div class="fighter-level" id="playerLevel">Nivel 1</div>
+                        <div class="hp-bar">
+                            <div class="hp-fill" id="playerHpBar" style="width: 100%;">100/100</div>
+                        </div>
+                    </div>
+
+                    <div class="vs-text">VS</div>
+
+                    <div class="fighter">
+                        <div class="sprite" id="enemySprite">👹</div>
+                        <div class="fighter-name" id="enemyName">Enemigo</div>
+                        <div class="fighter-level" id="enemyLevel">Nivel 1</div>
+                        <div class="hp-bar">
+                            <div class="hp-fill" id="enemyHpBar" style="width: 100%;">80/80</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="combat-controls">
+                    <select id="enemySelect">
+                        <option value="">Selecciona enemigo...</option>
+                        <option value="goblin">👹 Goblin (Lvl 1-5)</option>
+                        <option value="orco">🗡️ Orco (Lvl 5-10)</option>
+                        <option value="dragon">🐉 Dragón (Lvl 15-25)</option>
+                        <option value="troll">👿 Troll (Lvl 10-15)</option>
+                        <option value="mago">🧙 Mago Oscuro (Lvl 12-20)</option>
+                        <option value="pajaro">🦅 Pájaro (Lvl 3-8)</option>
+                        <option value="gargola">🗿 Gárgola (Lvl 8-12)</option>
+                        <option value="perro">🐕 Perro (Lvl 2-6)</option>
+                        <option value="zombie">🧟 Zombie (Lvl 6-11)</option>
+                    </select>
+
+                    <button class="btn" id="btnStart" onclick="initCombat()">🎯 Iniciar Batalla</button>
+                    <button class="btn" id="btnAttack" onclick="playerAttack()" style="display:none;">💥 ATACAR</button>
+                </div>
+
+                <div id="combatLog">
+                    <div class="log-entry log-normal">Selecciona un enemigo y haz clic en "Iniciar Batalla"</div>
+                </div>
+            </div>
+
+            <!-- ESCENA CIUDAD -->
+            <div id="cityScene" class="scene">
+                <h2 class="city-title">🏘️ TU CIUDAD</h2>
+                
+                <div class="city-grid">
+                    <div class="building" onclick="farmTokens('granja')">
+                        <div class="building-icon">🌾</div>
+                        <div class="building-name">Granja</div>
+                        <div class="building-reward">+50 Oro</div>
+                    </div>
+                    
+                    <div class="building" onclick="farmTokens('mina')">
+                        <div class="building-icon">⛏️</div>
+                        <div class="building-name">Mina</div>
+                        <div class="building-reward">+100 Oro</div>
+                    </div>
+                    
+                    <div class="building" onclick="farmTokens('templo')">
+                        <div class="building-icon">🏛️</div>
+                        <div class="building-name">Templo</div>
+                        <div class="building-reward">+100 Puntos</div>
+                    </div>
+                    
+                    <div class="building" onclick="farmTokens('torre')">
+                        <div class="building-icon">🗼</div>
+                        <div class="building-name">Torre Mágica</div>
+                        <div class="building-reward">+150 Oro</div>
+                    </div>
+                    
+                    <div class="building" onclick="farmTokens('castillo')">
+                        <div class="building-icon">🏰</div>
+                        <div class="building-name">Castillo</div>
+                        <div class="building-reward">+300 Oro</div>
+                    </div>
+                    
+                    <div class="building" onclick="farmTokens('tienda')">
+                        <div class="building-icon">🏪</div>
+                        <div class="building-name">Tienda</div>
+                        <div class="building-reward">Próximamente</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="battle-area">
-        <div class="char">
-            <div>👤 Tú</div>
-            <div class="hp-bar"><div id="player-hp" class="hp-fill"></div></div>
-        </div>
-        <div class="char">
-            <div>👹 Orco</div>
-            <div class="hp-bar"><div id="enemy-hp" class="hp-fill"></div></div>
-        </div>
-    </div>
+    <script>
+        // ==================== INICIALIZACIÓN ====================
+        const tg = window.Telegram.WebApp;
+        if(tg) tg.expand();
 
-    <div id="log">¡Listo para pelear!</div>
-    <button id="btn-action" class="btn-attack" onclick="atacar()">⚔️ ATACAR</button>
-</div>
+        const API_URL = "https://pseudomoralistic-catharine-mannishly.ngrok-free.dev";
+        let userId = tg?.initDataUnsafe?.user?.id || "test_user_" + Math.random().toString(36).substr(2, 9);
 
-<script>
-    const tg = window.Telegram.WebApp;
-    tg.expand(); // Pantalla completa
+        // ==================== DATOS DEL JUEGO ====================
+        const enemyData = {
+            goblin: { name: "Goblin", emoji: "👹", minLvl: 1, maxLvl: 5, baseHp: 40, baseDmg: 5 },
+            orco: { name: "Orco", emoji: "🗡️", minLvl: 5, maxLvl: 10, baseHp: 60, baseDmg: 8 },
+            dragon: { name: "Dragón", emoji: "🐉", minLvl: 15, maxLvl: 25, baseHp: 150, baseDmg: 15 },
+            troll: { name: "Troll", emoji: "👿", minLvl: 10, maxLvl: 15, baseHp: 80, baseDmg: 10 },
+            mago: { name: "Mago Oscuro", emoji: "🧙", minLvl: 12, maxLvl: 20, baseHp: 60, baseDmg: 12 },
+            pajaro: { name: "Pájaro", emoji: "🦅", minLvl: 3, maxLvl: 8, baseHp: 35, baseDmg: 4 },
+            gargola: { name: "Gárgola", emoji: "🗿", minLvl: 8, maxLvl: 12, baseHp: 70, baseDmg: 7 },
+            perro: { name: "Perro", emoji: "🐕", minLvl: 2, maxLvl: 6, baseHp: 30, baseDmg: 3 },
+            zombie: { name: "Zombie", emoji: "🧟", minLvl: 6, maxLvl: 11, baseHp: 50, baseDmg: 6 }
+        };
 
-    // --- CONFIGURACIÓN ---
-    // ¡AQUÍ PEGAS TU URL DE NGROK! (No olvides el /api al final si tus rutas lo usan)
-    const API_URL = "https://pseudomoralistic-catharine-mannishly.ngrok-free.dev"; 
-    
-    // Datos simulados si no estamos en Telegram (para probar en navegador PC)
-    let userId = tg.initDataUnsafe?.user?.id || "test_user_123"; 
+        // ESTADO DEL JUEGO
+        let gameState = {
+            player: {
+                name: "Pardo",
+                level: 1,
+                hp: 100,
+                maxHp: 100,
+                str: 5,
+                dex: 5,
+                vit: 5,
+                int: 5,
+                gold: 0,
+                airdropPoints: 0
+            },
+            currentEnemy: null,
+            inCombat: false,
+            combatLog: []
+        };
 
-    // Estado del juego
-    let player = { maxHp: 100, hp: 100, dmg: 10 };
-    let enemy = { maxHp: 80, hp: 80, dmg: 5 };
-    let isFighting = true;
+        // ==================== FUNCIONES ====================
 
-    // 1. INICIO: Cargar datos del servidor
-    async function initGame() {
-        try {
-            let response = await fetch(`${API_URL}/user/${userId}`);
-            let data = await response.json();
+        function updateUI() {
+            document.getElementById('levelDisplay').textContent = gameState.player.level;
+            document.getElementById('hpDisplay').textContent = `${gameState.player.hp}/${gameState.player.maxHp}`;
+            document.getElementById('goldDisplay').textContent = gameState.player.gold;
+            document.getElementById('pointsDisplay').textContent = gameState.player.airdropPoints;
+            document.getElementById('playerLevel').textContent = `Nivel ${gameState.player.level}`;
             
-            // Actualizar UI
-            document.getElementById('gold-display').innerText = data.gold;
-            document.getElementById('sword-display').innerText = data.sword_level;
-            
-            // Ajustar daño según nivel de espada (Lógica simple)
-            player.dmg = 10 + (data.sword_level * 2);
-            
-        } catch (e) {
-            document.getElementById('log').innerText = "Error conectando al servidor (Backend off?)";
-        }
-    }
-
-    // 2. LÓGICA DE COMBATE
-    function atacar() {
-        if (!isFighting) return resetFight();
-
-        // Turno Jugador
-        enemy.hp -= player.dmg;
-        updateBars();
-        document.getElementById('log').innerText = `¡Golpeas por ${player.dmg} daño!`;
-
-        if (enemy.hp <= 0) {
-            winFight();
-            return;
-        }
-
-        // Turno Enemigo (pequeño delay para realismo)
-        setTimeout(() => {
-            player.hp -= enemy.dmg;
-            updateBars();
-            if (player.hp <= 0) {
-                document.getElementById('log').innerText = "Has sido derrotado...";
-                isFighting = false;
-                document.getElementById('btn-action').innerText = "💀 Revivir";
+            if(gameState.currentEnemy) {
+                let pPct = Math.max(0, (gameState.player.hp / gameState.player.maxHp) * 100);
+                let ePct = Math.max(0, (gameState.currentEnemy.hp / gameState.currentEnemy.maxHp) * 100);
+                document.getElementById('playerHpBar').style.width = pPct + '%';
+                document.getElementById('playerHpBar').textContent = `${Math.max(0, gameState.player.hp)}/${gameState.player.maxHp}`;
+                document.getElementById('enemyHpBar').style.width = ePct + '%';
+                document.getElementById('enemyHpBar').textContent = `${Math.max(0, gameState.currentEnemy.hp)}/${gameState.currentEnemy.maxHp}`;
             }
-        }, 300);
-    }
-
-    // 3. VICTORIA Y GUARDADO
-    async function winFight() {
-        isFighting = false;
-        document.getElementById('log').innerText = "¡VICTORIA! +10 Monedas";
-        document.getElementById('btn-action').innerText = "🔄 Buscar otro enemigo";
-
-        // Enviar datos al backend
-        try {
-            let response = await fetch(`${API_URL}/save`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, gold_earned: 10 })
-            });
-            let result = await response.json();
-            document.getElementById('gold-display').innerText = result.new_gold;
-        } catch (e) {
-            console.error("Error guardando progreso");
         }
-    }
 
-    function resetFight() {
-        player.hp = player.maxHp;
-        enemy.hp = enemy.maxHp;
-        isFighting = true;
-        updateBars();
-        document.getElementById('btn-action').innerText = "⚔️ ATACAR";
-        document.getElementById('log').innerText = "¡Un nuevo enemigo aparece!";
-    }
+        function log(msg, type = 'normal') {
+            const logDiv = document.getElementById('combatLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = msg;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            gameState.combatLog.push(msg);
+            if(logDiv.children.length > 15) logDiv.removeChild(logDiv.firstChild);
+        }
 
-    function updateBars() {
-        let pPct = (player.hp / player.maxHp) * 100;
-        let ePct = (enemy.hp / enemy.maxHp) * 100;
-        document.getElementById('player-hp').style.width = Math.max(0, pPct) + "%";
-        document.getElementById('enemy-hp').style.width = Math.max(0, ePct) + "%";
-    }
+        function switchScene(scene) {
+            document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            if(scene === 'combat') {
+                document.getElementById('combatScene').classList.add('active');
+                document.querySelectorAll('.nav-btn')[0].classList.add('active');
+            } else if(scene === 'city') {
+                document.getElementById('cityScene').classList.add('active');
+                document.querySelectorAll('.nav-btn')[1].classList.add('active');
+            }
+        }
 
-    // Arrancar juego
-    initGame();
+        function calculateDamage() {
+            const baseDmg = 10 + gameState.player.str * 2;
+            const crit = Math.random() < (0.05 + gameState.player.dex * 0.01);
+            return crit ? baseDmg * 2 : baseDmg;
+        }
 
-</script>
+        function initCombat() {
+            if(gameState.inCombat) return;
+            
+            const enemyKey = document.getElementById('enemySelect').value;
+            const enemy = enemyData[enemyKey];
+            
+            if(!enemy) { 
+                log('Selecciona un enemigo válido', 'damage');
+                return; 
+            }
+
+            const lvl = Math.floor(Math.random() * (enemy.maxLvl - enemy.minLvl + 1)) + enemy.minLvl;
+            const hp = enemy.baseHp + lvl * 5;
+
+            gameState.currentEnemy = {
+                name: enemy.name,
+                emoji: enemy.emoji,
+                level: lvl,
+                hp: hp,
+                maxHp: hp,
+                str: 3 + lvl,
+                dmg: enemy.baseDmg + lvl
+            };
+
+            gameState.player.hp = gameState.player.maxHp;
+            gameState.inCombat = true;
+
+            document.getElementById('enemySprite').textContent = enemy.emoji;
+            document.getElementById('enemyName').textContent = enemy.name;
+            document.getElementById('enemyLevel').textContent = `Nivel ${lvl}`;
+            document.getElementById('btnStart').style.display = 'none';
+            document.getElementById('btnAttack').style.display = 'block';
+            document.getElementById('enemySelect').style.display = 'none';
+
+            log(`¡Comienza la batalla contra ${enemy.name} Nivel ${lvl}!`, 'victory');
+            updateUI();
+        }
+
+        function playerAttack() {
+            if(!gameState.inCombat || !gameState.currentEnemy) return;
+
+            const dmg = calculateDamage();
+            gameState.currentEnemy.hp -= dmg;
+
+            document.getElementById('playerSprite').classList.add('attack');
+            setTimeout(() => document.getElementById('playerSprite').classList.remove('attack'), 600);
+
+            log(`Pardo atacó por ${dmg} daño!`, 'damage');
+
+            if(gameState.currentEnemy.hp <= 0) {
+                endCombat(true);
+                return;
+            }
+
+            setTimeout(() => enemyAttack(), 700);
+        }
+
+        function enemyAttack() {
+            if(!gameState.inCombat) return;
+            
+            const dmg = Math.floor(Math.random() * 10) + gameState.currentEnemy.str;
+            gameState.player.hp -= dmg;
+
+            document.getElementById('enemySprite').classList.add('attack');
+            setTimeout(() => document.getElementById('enemySprite').classList.remove('attack'), 600);
+
+            log(`${gameState.currentEnemy.name} atacó por ${dmg} daño!`, 'damage');
+
+            if(gameState.player.hp <= 0) {
+                endCombat(false);
+                return;
+            }
+
+            updateUI();
+        }
+
+        function endCombat(victory) {
+            gameState.inCombat = false;
+
+            if(victory) {
+                gameState.player.level++;
+                const goldReward = 50 + gameState.currentEnemy.level * 10;
+                const pointsReward = 10 + gameState.currentEnemy.level * 2;
+                gameState.player.gold += goldReward;
+                gameState.player.airdropPoints += pointsReward;
+                
+                log(`¡VICTORIA! +${goldReward} Oro +${pointsReward} Puntos`, 'victory');
+                saveProgress(goldReward, pointsReward);
+            } else {
+                gameState.player.hp = gameState.player.maxHp;
+                log('¡DERROTA! Pero vuelves a la vida...', 'damage');
+            }
+
+            document.getElementById('btnStart').style.display = 'block';
+            document.getElementById('btnAttack').style.display = 'none';
+            document.getElementById('enemySelect').style.display = 'block';
+            gameState.currentEnemy = null;
+            updateUI();
+        }
+
+        function farmTokens(building) {
+            const rewards = {
+                granja: { gold: 50, points: 0 },
+                mina: { gold: 100, points: 0 },
+                templo: { gold: 0, points: 100 },
+                torre: { gold: 150, points: 0 },
+                castillo: { gold: 300, points: 0 },
+                tienda: { gold: 0, points: 0 }
+            };
+
+            const reward = rewards[building];
+            gameState.player.gold += reward.gold;
+            gameState.player.airdropPoints += reward.points;
+
+            if(reward.gold === 0 && reward.points === 0) {
+                alert('🏪 Tienda próximamente disponible');
+                return;
+            }
+
+            updateUI();
+            alert(`🎉 ¡Farmeo completado!\n+${reward.gold} Oro\n+${reward.points} Puntos`);
+        }
+
+        async function saveProgress(goldEarned, pointsEarned) {
+            try {
+                await fetch(`${API_URL}/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        gold_earned: goldEarned,
+                        airdrop_points_added: pointsEarned
+                    })
+                });
+            } catch(e) {
+                console.error("Error guardando:", e);
+            }
+        }
+
+        async function initGame() {
+            try {
+                const response = await fetch(`${API_URL}/user/${userId}`);
+                const data = await response.json();
+                
+                gameState.player.gold = data.gold || 0;
+                gameState.player.airdropPoints = data.airdrop_points || 0;
+                gameState.player.level = data.level || 1;
+
+                updateUI();
+            } catch(e) {
+                console.log("Servidor no disponible, modo offline");
+            }
+        }
+
+        // ==================== INICIO ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initGame();
+            updateUI();
+        });
+    </script>
 </body>
 </html>
