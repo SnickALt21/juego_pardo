@@ -1,0 +1,47 @@
+# ----------------------------------------------------
+# 1. ARCHIVOS DE SECRETOS Y CONFIGURACIÓN (CRÍTICO)
+# ----------------------------------------------------
+# Archivo donde guardas la clave de API de Firebase y otros secretos de Flask.
+# ¡Este archivo NUNCA debe subirse!
+juego_pardo.env
+
+# Nombre genérico común para archivos de secretos
+.env
+.flaskenv
+
+# Archivos de Service Account (credenciales de servidor) si las usas
+serviceAccountKey.json
+credentials.json
+
+
+# ----------------------------------------------------
+# 2. ENTORNO VIRTUAL Y CACHÉ DE PYTHON
+# ----------------------------------------------------
+# Entornos virtuales (donde se instalan las librerías)
+venv/
+env/
+
+# Archivos de caché de Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Archivos de datos generados por el proyecto (si aplican)
+*.log
+*.sqlite
+
+# ----------------------------------------------------
+# 3. CARPETAS ESPECÍFICAS DEL PROYECTO
+# ----------------------------------------------------
+# Si la carpeta juego_pardo contiene archivos de salida, logs o temporales
+# que no deben ir al repositorio, puedes añadirla. 
+# Si solo contiene tu código fuente, BORRA esta línea.
+# juego_pardo/
+
+# ----------------------------------------------------
+# 4. ARCHIVOS DE SISTEMA Y EDITORES (Temporales)
+# ----------------------------------------------------
+.DS_Store # macOS
+Thumbs.db # Windows
+.idea/    # IntelliJ/PyCharm
+.vscode/  # VS Code
