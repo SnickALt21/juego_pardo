@@ -1,10 +1,13 @@
 services:
   - type: web
     name: pardo-rpg-bot
-    env: python
-    buildCommand: pip install -r requirements.txt
+    runtime: python
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: python juego_pardo.py
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
       - key: BOT_TOKEN
         sync: false
       - key: SECRET_KEY
@@ -13,3 +16,6 @@ services:
         sync: false
       - key: GAME_HTML_URL
         sync: false
+      - key: PORT
+        value: 10000
+    healthCheckPath: /health
