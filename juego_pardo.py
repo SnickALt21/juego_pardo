@@ -1,16 +1,12 @@
 import os
-import sqlite3
 import logging
-import hmac
-import hashlib
+import random
 from datetime import datetime
-from functools import wraps
 from dotenv import load_dotenv
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram import Bot, Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
 import requests
 
 # ==================== CONFIGURACIÓN ====================
@@ -19,15 +15,14 @@ load_dotenv(dotenv_path='juego_pardo.env')
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 SECRET_KEY = os.getenv("SECRET_KEY")
 WEBHOOK_URL_BASE = os.getenv("WEBHOOK_URL")
-PORT = int(os.getenv("PORT", 5000))
-GAME_HTML_URL = os.getenv("GAME_HTML_URL")  # https://tuusuario.github.io/tu-repo/juego_pardo.html
+PORT = int(os.getenv("PORT", 10000))
+GAME_HTML_URL = os.getenv("GAME_HTML_URL")
 
 if not all([BOT_TOKEN, SECRET_KEY, WEBHOOK_URL_BASE, GAME_HTML_URL]):
-    print("❌ Error: Faltan variables en juego_pardo.env")
+    print("❌ Error: Faltan variables de entorno")
     print("Necesitas: BOT_TOKEN, SECRET_KEY, WEBHOOK_URL, GAME_HTML_URL")
     exit(1)
 
-# ==================== LOGGING ====================
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -40,237 +35,287 @@ app.config['SECRET_KEY'] = SECRET_KEY
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # ==================== TELEGRAM BOT ====================
-application = Application.builder().token(BOT_TOKEN).build()
+bot = Bot(token=BOT_TOKEN)
 
-# ==================== BASE DE DATOS ====================
-DB_NAME = 'game.db'
+# ==================== CATÁLOGO DE MISIONES PVE ====================
+MISSIONS_CATALOG = {
+    1: {"name": "Rata Salvaje", "hp": 50, "power": 5, "dexterity": 3, "endurance": 2, "exp": 50, "gold": 10},
+    2: {"name": "Lobo Hambriento", "hp": 80, "power": 8, "dexterity": 5, "endurance": 4, "exp": 80, "gold": 15},
+    3: {"name": "Goblin Ladrón", "hp": 120, "power": 12, "dexterity": 8, "endurance": 6, "exp": 120, "gold": 25},
+    4: {"name": "Orco Guerrero", "hp": 180, "power": 18, "dexterity": 10, "endurance": 12, "exp": 180, "gold": 40},
+    5: {"name": "Troll de Piedra", "hp": 250, "power": 25, "dexterity": 12, "endurance": 20, "exp": 250, "gold": 60},
+    6: {"name": "Araña Gigante", "hp": 200, "power": 22, "dexterity": 18, "endurance": 15, "exp": 220, "gold": 50},
+    7: {"name": "Caballero Oscuro", "hp": 300, "power": 30, "dexterity": 20, "endurance": 25, "exp": 300, "gold": 80},
+    8: {"name": "Demonio Menor", "hp": 400, "power": 40, "dexterity": 25, "endurance": 30, "exp": 400, "gold": 120},
+    9: {"name": "Dragón Joven", "hp": 550, "power": 50, "dexterity": 30, "endurance": 40, "exp": 550, "gold": 180},
+    10: {"name": "Señor Oscuro", "hp": 750, "power": 65, "dexterity": 40, "endurance": 50, "exp": 750, "gold": 250}
+}
 
-def init_db():
-    """Inicializa la base de datos."""
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    
-    # Crear tabla si no existe
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            user_id TEXT PRIMARY KEY,
-            username TEXT,
-            level INTEGER DEFAULT 1,
-            gold INTEGER DEFAULT 0,
-            sword_level INTEGER DEFAULT 1,
-            airdrop_points INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # Migración: Agregar columnas si no existen
-    try:
-        c.execute("ALTER TABLE users ADD COLUMN username TEXT")
-        logger.info("✅ Columna 'username' agregada")
-    except sqlite3.OperationalError:
-        pass  # La columna ya existe
-    
-    try:
-        c.execute("ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-        logger.info("✅ Columna 'created_at' agregada")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        c.execute("ALTER TABLE users ADD COLUMN last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-        logger.info("✅ Columna 'last_updated' agregada")
-    except sqlite3.OperationalError:
-        pass
-    
-    conn.commit()
-    conn.close()
-    logger.info("✅ Base de datos inicializada")
+# ==================== FÓRMULAS DE COMBATE ====================
+def calculate_hit_chance(attacker_dex):
+    """Probabilidad de golpe: 75% base + (Dex * 0.5%)"""
+    return min(0.95, 0.75 + (attacker_dex * 0.005))
 
-init_db()
+def calculate_crit_chance(attacker_dex):
+    """Probabilidad crítica: Dex * 0.1%"""
+    return min(0.30, attacker_dex * 0.001)
 
-def get_db_connection():
-    """Obtiene conexión a la BD con timeout."""
-    conn = sqlite3.connect(DB_NAME, timeout=5)
-    conn.row_factory = sqlite3.Row
-    return conn
+def calculate_block_chance(defender_end):
+    """Probabilidad de bloqueo: End * 0.08%"""
+    return min(0.25, defender_end * 0.0008)
 
-# ==================== SEGURIDAD ====================
-def validate_telegram_data(data):
-    """Valida que los datos provienen de Telegram."""
-    try:
-        hash_value = data.pop('hash', None)
-        if not hash_value:
-            return False
-        
-        check_string = '\n'.join([f"{k}={v}" for k, v in sorted(data.items())])
-        secret_key = hashlib.sha256(SECRET_KEY.encode()).digest()
-        computed_hash = hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
-        
-        return computed_hash == hash_value
-    except Exception as e:
-        logger.error(f"Error validando datos Telegram: {e}")
-        return False
+def calculate_base_damage(power):
+    """Daño base: Poder + Random(1, Poder*20%)"""
+    return power + random.randint(1, max(1, int(power * 0.2)))
 
-def require_validation(f):
-    """Decorador para validar solicitudes de Telegram."""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        data = request.json
-        if not validate_telegram_data(data.copy()):
-            logger.warning(f"Solicitud no validada desde {request.remote_addr}")
-            return jsonify({"error": "Unauthorized"}), 401
-        return f(*args, **kwargs)
-    return decorated_function
+def calculate_defense(endurance):
+    """Defensa: Aguante * 1.5"""
+    return endurance * 1.5
 
-# ==================== MANEJADORES DEL BOT ====================
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Maneja el comando /start."""
-    user_id = str(update.effective_user.id)
-    username = update.effective_user.username or "Usuario"
-    
-    # Registra al usuario
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute(
-        "INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)",
-        (user_id, username)
-    )
-    conn.commit()
-    conn.close()
-    
-    # Crea el botón
-    web_app_info = WebAppInfo(url=GAME_HTML_URL)
-    keyboard = [[
-        InlineKeyboardButton(
-            "🎮 Jugar Pardo RPG",
-            web_app=web_app_info
-        )
-    ]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
-        f"¡Bienvenido {username}! 🚀\n\n"
-        "Haz clic en el botón para jugar.",
-        reply_markup=reply_markup
-    )
-
-application.add_handler(CommandHandler("start", start_command))
-
-# ==================== API - USUARIO ====================
-@app.route('/api/user/<user_id>', methods=['GET'])
-def get_user(user_id):
-    """Obtiene datos del usuario o lo crea."""
-    conn = get_db_connection()
-    c = conn.cursor()
-    
-    c.execute(
-        "SELECT user_id, level, gold, sword_level, airdrop_points FROM users WHERE user_id = ?",
-        (user_id,)
-    )
-    user = c.fetchone()
-    
-    if not user:
-        c.execute(
-            "INSERT INTO users (user_id) VALUES (?)",
-            (user_id,)
-        )
-        conn.commit()
-        data = {
-            "user_id": user_id,
-            "level": 1,
-            "gold": 0,
-            "sword_level": 1,
-            "airdrop_points": 0
-        }
-    else:
-        data = {
-            "user_id": user[0],
-            "level": user[1],
-            "gold": user[2],
-            "sword_level": user[3],
-            "airdrop_points": user[4]
+def execute_attack(attacker, defender):
+    """
+    Ejecuta un ataque completo con todas las fórmulas.
+    Retorna: dict con resultado del ataque
+    """
+    # 1. Verificar si el ataque acierta
+    hit_chance = calculate_hit_chance(attacker['dexterity'])
+    if random.random() > hit_chance:
+        return {
+            "hit": False,
+            "damage": 0,
+            "critical": False,
+            "blocked": False,
+            "message": "¡Ataque fallado!"
         }
     
-    conn.close()
-    return jsonify(data)
+    # 2. Calcular daño base
+    base_damage = calculate_base_damage(attacker['power'])
+    
+    # 3. Verificar crítico (x2 daño)
+    is_critical = random.random() < calculate_crit_chance(attacker['dexterity'])
+    if is_critical:
+        base_damage *= 2
+    
+    # 4. Verificar bloqueo del defensor (x2 defensa)
+    defense = calculate_defense(defender['endurance'])
+    is_blocked = random.random() < calculate_block_chance(defender['endurance'])
+    if is_blocked:
+        defense *= 2
+    
+    # 5. Calcular daño final
+    final_damage = max(1, base_damage - defense)
+    
+    return {
+        "hit": True,
+        "damage": int(final_damage),
+        "critical": is_critical,
+        "blocked": is_blocked,
+        "message": f"{'¡CRÍTICO! ' if is_critical else ''}Daño: {int(final_damage)}{' (BLOQUEADO)' if is_blocked else ''}"
+    }
 
-# ==================== API - GUARDAR PROGRESO ====================
-@app.route('/api/save', methods=['POST'])
-def save_progress():
-    """Guarda el progreso del jugador."""
-    try:
-        data = request.json
-        user_id = data.get('user_id')
-        gold_earned = int(data.get('gold_earned', 0))
-        airdrop_points_added = int(data.get('airdrop_points_added', 0))
-        
-        if not user_id:
-            return jsonify({"error": "user_id requerido"}), 400
-        
-        conn = get_db_connection()
-        c = conn.cursor()
-        
-        c.execute(
-            "UPDATE users SET gold = gold + ?, airdrop_points = airdrop_points + ?, "
-            "last_updated = CURRENT_TIMESTAMP WHERE user_id = ?",
-            (gold_earned, airdrop_points_added, user_id)
-        )
-        conn.commit()
-        conn.close()
-        
-        logger.info(f"Usuario {user_id}: +{gold_earned} oro, +{airdrop_points_added} puntos")
-        return jsonify({"status": "success"})
-        
-    except Exception as e:
-        logger.error(f"Error guardando progreso: {e}")
-        return jsonify({"error": str(e)}), 500
-
-# ==================== API - ESTADÍSTICAS ====================
-@app.route('/api/stats', methods=['GET'])
-def get_stats():
-    """Obtiene estadísticas del servidor."""
-    conn = get_db_connection()
-    c = conn.cursor()
+# ==================== API - COMBATE PVE ====================
+@app.route('/api/pve/mission/<int:mission_id>', methods=['POST'])
+def start_pve_mission(mission_id):
+    """Inicia una misión PVE contra un monstruo"""
+    if mission_id not in MISSIONS_CATALOG:
+        return jsonify({"error": "Misión no encontrada"}), 404
     
-    c.execute("SELECT COUNT(*) as total_users FROM users")
-    total_users = c.fetchone()[0]
+    data = request.json
+    player_stats = data.get('player_stats')
     
-    c.execute("SELECT SUM(gold) as total_gold FROM users")
-    total_gold = c.fetchone()[0] or 0
+    if not player_stats:
+        return jsonify({"error": "Stats del jugador requeridos"}), 400
     
-    conn.close()
+    mission = MISSIONS_CATALOG[mission_id]
     
     return jsonify({
-        "total_users": total_users,
-        "total_gold": total_gold,
-        "timestamp": datetime.now().isoformat()
+        "mission_id": mission_id,
+        "enemy": mission,
+        "player": player_stats
     })
 
-# ==================== WEBHOOK ====================
+@app.route('/api/pve/attack', methods=['POST'])
+def pve_attack():
+    """Procesa un ataque en combate PVE"""
+    data = request.json
+    attacker = data.get('attacker')
+    defender = data.get('defender')
+    
+    if not attacker or not defender:
+        return jsonify({"error": "Datos incompletos"}), 400
+    
+    result = execute_attack(attacker, defender)
+    return jsonify(result)
+
+@app.route('/api/pve/complete', methods=['POST'])
+def complete_pve_mission():
+    """Completa una misión PVE y genera drop de item"""
+    data = request.json
+    mission_id = data.get('mission_id')
+    user_id = data.get('user_id')
+    victory = data.get('victory', False)
+    
+    if not mission_id or not user_id:
+        return jsonify({"error": "Datos incompletos"}), 400
+    
+    mission = MISSIONS_CATALOG.get(mission_id)
+    if not mission:
+        return jsonify({"error": "Misión inválida"}), 404
+    
+    # Calcular recompensas
+    exp_reward = mission['exp'] if victory else mission['exp'] // 2
+    gold_reward = mission['gold'] if victory else mission['gold'] // 3
+    
+    # Generar drop de item (nivel misión ±10)
+    item_drop = None
+    if victory and random.random() < 0.4:  # 40% drop rate
+        item_types = ['Weapon', 'Shield', 'Helmet', 'Armor', 'Boots', 'Gloves', 'Amulet', 'Ring']
+        item_type = random.choice(item_types)
+        item_level = mission_id + random.randint(0, 10)
+        
+        item_drop = generate_random_item(item_type, item_level)
+    
+    return jsonify({
+        "exp": exp_reward,
+        "gold": gold_reward,
+        "item": item_drop,
+        "message": "¡Victoria!" if victory else "Derrota"
+    })
+
+def generate_random_item(item_type, level):
+    """Genera un item aleatorio basado en nivel"""
+    rarity = random.choices(['Común', 'Raro', 'Épico', 'Legendario'], weights=[50, 30, 15, 5])[0]
+    multiplier = {'Común': 1, 'Raro': 1.5, 'Épico': 2, 'Legendario': 3}[rarity]
+    
+    base_stats = int(level * 0.5 * multiplier)
+    
+    stats = {}
+    if item_type in ['Weapon', 'Gloves']:
+        stats['power'] = base_stats + random.randint(0, 3)
+    if item_type in ['Boots', 'Ring']:
+        stats['dexterity'] = base_stats + random.randint(0, 3)
+    if item_type in ['Shield', 'Armor', 'Helmet']:
+        stats['endurance'] = base_stats + random.randint(0, 3)
+    if item_type == 'Amulet':
+        stats['life'] = base_stats * 10
+    
+    return {
+        "name": f"{rarity} {item_type} Nv.{level}",
+        "type": item_type,
+        "level": level,
+        "rarity": rarity,
+        "stats": stats
+    }
+
+# ==================== API - MARKETPLACE ====================
+@app.route('/api/marketplace/items', methods=['GET'])
+def get_marketplace_items():
+    """Retorna catálogo completo de items clasificados"""
+    item_type = request.args.get('type', None)
+    
+    # Generar catálogo por tipo
+    marketplace = {}
+    for itype in ['Weapon', 'Shield', 'Helmet', 'Armor', 'Boots', 'Gloves', 'Amulet', 'Ring']:
+        items = []
+        for level in range(1, 101, 5):  # Items cada 5 niveles
+            item = generate_random_item(itype, level)
+            item['price'] = level * 20  # Precio basado en nivel
+            items.append(item)
+        marketplace[itype] = items
+    
+    if item_type:
+        return jsonify(marketplace.get(item_type, []))
+    
+    return jsonify(marketplace)
+
+# ==================== API - PVP MATCHMAKING ====================
+pvp_queue = {}  # {user_id: {level, stats, timestamp}}
+
+@app.route('/api/pvp/join_queue', methods=['POST'])
+def join_pvp_queue():
+    """Unirse a la cola PVP"""
+    import time
+    
+    data = request.json
+    user_id = data.get('user_id')
+    level = data.get('level')
+    stats = data.get('stats')
+    
+    if level < 10:
+        return jsonify({"error": "Nivel mínimo 10 para PVP"}), 400
+    
+    # Buscar oponente en rango ±5 niveles
+    opponent = None
+    for uid, player_data in list(pvp_queue.items()):
+        if abs(player_data['level'] - level) <= 5 and uid != user_id:
+            opponent = {"user_id": uid, **player_data}
+            del pvp_queue[uid]
+            break
+    
+    if opponent:
+        # Match encontrado
+        return jsonify({
+            "match_found": True,
+            "opponent": opponent,
+            "match_id": f"{user_id}_{opponent['user_id']}_{int(time.time())}"
+        })
+    else:
+        # Añadir a cola
+        pvp_queue[user_id] = {"level": level, "stats": stats, "timestamp": time.time()}
+        return jsonify({"match_found": False, "message": "Buscando oponente..."})
+
+@app.route('/api/pvp/attack', methods=['POST'])
+def pvp_attack():
+    """Procesa un ataque en combate PVP"""
+    return pve_attack()  # Misma lógica de combate
+
+# ==================== TELEGRAM WEBHOOK ====================
 @app.route('/webhook', methods=['POST'])
-async def telegram_webhook():
-    """Maneja updates de Telegram."""
+def telegram_webhook():
+    """Maneja updates de Telegram (comando /start)"""
     try:
-        if not application._initialized:
-            await application.initialize()
-            await application.start()
-        
         update_data = request.get_json()
-        update = Update.de_json(update_data, application.bot)
         
-        await application.process_update(update)
+        # Parsear el update
+        if 'message' in update_data and 'text' in update_data['message']:
+            chat_id = update_data['message']['chat']['id']
+            text = update_data['message']['text']
+            username = update_data['message']['from'].get('username', 'Usuario')
+            
+            if text == '/start':
+                # Crear botón con WebApp
+                keyboard = {
+                    "inline_keyboard": [[{
+                        "text": "🎮 Jugar Pardo RPG",
+                        "web_app": {"url": GAME_HTML_URL}
+                    }]]
+                }
+                
+                message = (
+                    f"¡Bienvenido {username}! 🚀\n\n"
+                    "🗡️ Nivel 1-10: Completa misiones PVE\n"
+                    "⚔️ Nivel 10+: Combate PVP en tiempo real\n\n"
+                    "Haz clic para empezar tu aventura."
+                )
+                
+                # Enviar mensaje con botón
+                bot.send_message(
+                    chat_id=chat_id,
+                    text=message,
+                    reply_markup=keyboard
+                )
+        
         return "ok", 200
         
     except Exception as e:
         logger.error(f"Error en webhook: {e}")
         return "ok", 200
 
-# ==================== SETUP WEBHOOK ====================
+# ==================== CONFIGURAR WEBHOOK ====================
 def configure_webhook():
-    """Configura el webhook en Telegram."""
+    """Configura el webhook en Telegram"""
     if "localhost" in WEBHOOK_URL_BASE or "127.0.0.1" in WEBHOOK_URL_BASE:
-        logger.warning("⚠️  Webhook local detectado. No se configura en Telegram.")
+        logger.warning("⚠️ Webhook local detectado - No se configura en Telegram")
         return
     
     try:
@@ -290,17 +335,42 @@ def configure_webhook():
 # ==================== HEALTH CHECK ====================
 @app.route('/health', methods=['GET'])
 def health():
-    """Endpoint de health check."""
-    return jsonify({"status": "ok", "bot": "pardo_rpg"}), 200
+    """Endpoint de health check"""
+    return jsonify({
+        "status": "ok", 
+        "bot": "pardo_rpg",
+        "missions": len(MISSIONS_CATALOG),
+        "timestamp": datetime.now().isoformat()
+    }), 200
+
+@app.route('/', methods=['GET'])
+def index():
+    """Ruta raíz"""
+    return jsonify({
+        "message": "Pardo RPG Bot API",
+        "version": "1.0",
+        "endpoints": [
+            "/health",
+            "/webhook",
+            "/api/pve/mission/<id>",
+            "/api/pve/attack",
+            "/api/pve/complete",
+            "/api/pvp/join_queue",
+            "/api/marketplace/items"
+        ]
+    }), 200
 
 # ==================== MAIN ====================
 if __name__ == '__main__':
     logger.info("="*50)
-    logger.info("🎮 Iniciando Bot Pardo RPG")
+    logger.info("🎮 Iniciando Pardo RPG Bot")
     logger.info(f"URL del Juego: {GAME_HTML_URL}")
     logger.info(f"Webhook: {WEBHOOK_URL_BASE}/webhook")
     logger.info(f"Puerto: {PORT}")
+    logger.info(f"Misiones PVE: {len(MISSIONS_CATALOG)}")
     logger.info("="*50)
     
     configure_webhook()
+    
+    # Usar el puerto de Render
     app.run(host='0.0.0.0', port=PORT, debug=False)
