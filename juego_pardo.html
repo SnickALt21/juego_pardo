@@ -2,1291 +2,884 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>⚔️ PARDO RPG PRO - Hamster Kombat Killer</title>
-    <link rel="manifest" href="data:application/manifest+json,{\"name\":\"Pardo RPG\",\"icons\":[{\"src\":\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%231a1a2e' width='192' height='192'/><text x='50%' y='50%' font-size='100' fill='%2300ff88' text-anchor='middle' dominant-baseline='middle'>⚔️</text></svg>\",\"sizes\":\"192x192\",\"type\":\"image/svg+xml\"}]}">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pardo RPG - Telegram Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'rpg-dark': '#1e293b',
+                        'rpg-accent': '#3b82f6',
+                        'rpg-inactive': '#475569',
+                        'rpg-text': '#f8fafc',
+                        'rpg-hp': '#ef4444',
+                        'rpg-stat': '#34d399',
+                        'rpg-gold': '#fbbf24',
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        /* ========== RESET ========== */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        /* ========== VARIABLES ========== */
-        :root {
-            --primary: #00ff88;
-            --secondary: #00d4ff;
-            --dark: #1a1a2e;
-            --darker: #0f3a4a;
-            --accent: #ff4444;
-            --warning: #ffaa44;
-            --success: #44ff44;
-            --text: #ffffff;
-            --text-muted: #aaaaaa;
-            --border: 3px solid var(--primary);
-            --shadow: 0 0 30px rgba(0,255,136,0.3);
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+        .stat-bar { transition: width 0.3s ease-in-out; }
+        .shake { animation: shake 0.5s; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
         }
-        
-        body {
-            background: linear-gradient(135deg, #1a1a2e 0%, #0f3a4a 100%);
-            color: var(--text);
-            font-family: 'Courier New', monospace;
-            min-height: 100vh;
-            overflow: hidden;
-            -webkit-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none;
+        .pulse-glow { animation: pulse-glow 1.5s infinite; }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.8); }
         }
-        
-        /* ========== CONTENEDOR PRINCIPAL ========== */
-        #gameContainer {
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        
-        /* ========== HEADER / NAVEGACIÓN ========== */
-        #header {
-            background: rgba(0,0,0,0.95);
-            border-bottom: var(--border);
-            padding: 10px 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            z-index: 100;
-            box-shadow: var(--shadow);
-        }
-        
-        .header-title {
-            font-size: 20px;
-            font-weight: bold;
-            color: var(--primary);
-            letter-spacing: 2px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .header-nav {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        
-        .nav-btn {
-            padding: 8px 14px;
-            background: rgba(0,150,255,0.4);
-            border: 2px solid var(--secondary);
-            color: var(--text);
-            cursor: pointer;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 12px;
-            transition: all 0.3s;
-            font-family: 'Courier New', monospace;
-        }
-        
-        .nav-btn.active {
-            background: var(--primary);
-            color: var(--dark);
-            border-color: var(--primary);
-            box-shadow: 0 0 15px var(--primary);
-        }
-        
-        .nav-btn:hover:not(.active) {
-            transform: translateY(-2px);
-            box-shadow: 0 0 10px var(--secondary);
-        }
-        
-        .header-stats {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        
-        .stat-badge {
-            background: rgba(0,100,200,0.5);
-            border-left: 3px solid var(--primary);
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-            min-width: 100px;
-            text-align: center;
-        }
-        
-        .stat-badge strong {
-            color: var(--primary);
-            font-size: 13px;
-        }
-        
-        /* ========== CONTENIDO PRINCIPAL ========== */
-        #mainContent {
-            flex: 1;
-            display: flex;
-            overflow: hidden;
-            gap: 0;
-        }
-        
-        .scene {
-            flex: 1;
-            display: none;
-            flex-direction: column;
-            overflow-y: auto;
-            padding: 20px;
-            animation: fadeIn 0.3s;
-        }
-        
-        .scene.active {
-            display: flex;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* ========== SCROLL ========== */
-        ::-webkit-scrollbar {
-            width: 10px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.5);
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 5px;
-        }
-        
-        /* ========== ========== */
-        /* MODULE 1: COMBAT SCENE */
-        /* ========== ========== */
-        
-        #combatScene {
-            background: rgba(0,0,0,0.3);
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .combat-title {
-            font-size: 24px;
-            color: var(--primary);
-            margin-bottom: 20px;
-            text-align: center;
-            letter-spacing: 3px;
-            text-shadow: 0 0 10px var(--primary);
-        }
-        
-        .battle-arena {
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
-            gap: 60px;
-            width: 100%;
-            max-width: 900px;
-            height: 500px;
-            background: rgba(0,0,0,0.7);
-            border: var(--border);
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 25px;
-            box-shadow: var(--shadow);
-        }
-        
-        .fighter {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .fighter-sprite {
-            width: 160px;
-            height: 160px;
-            background: rgba(0,100,200,0.2);
-            border: 2px solid var(--secondary);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 100px;
-            animation: breathe 2s infinite;
-            box-shadow: inset 0 0 20px rgba(0,212,255,0.2);
-        }
-        
-        .fighter-sprite.attacking {
-            animation: attack 0.6s;
-        }
-        
-        @keyframes breathe {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        
-        @keyframes attack {
-            0% { transform: scaleX(-1) translateX(-25px); }
-            50% { transform: scaleX(-1) translateX(20px); }
-            100% { transform: scaleX(-1) translateX(0); }
-        }
-        
-        .fighter-name {
-            font-size: 16px;
-            font-weight: bold;
-            color: var(--primary);
-        }
-        
-        .fighter-level {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-        
-        .fighter-hp {
-            width: 180px;
-            height: 30px;
-            background: #333;
-            border: 2px solid var(--primary);
-            border-radius: 5px;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            position: relative;
-        }
-        
-        .hp-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #ff4444, #ffaa44);
-            transition: width 0.4s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
-            color: var(--text);
-        }
-        
-        .vs-text {
-            font-size: 32px;
-            color: var(--primary);
-            font-weight: bold;
-            text-shadow: 0 0 15px var(--primary);
-        }
-        
-        .combat-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            width: 100%;
-            max-width: 500px;
-            margin-bottom: 20px;
-        }
-        
-        select {
-            padding: 12px;
-            background: rgba(0,50,150,0.8);
-            border: 2px solid var(--secondary);
-            color: var(--text);
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-        }
-        
-        select option {
-            background: var(--dark);
-            color: var(--text);
-        }
-        
-        .combat-log {
-            width: 100%;
-            max-width: 900px;
-            height: 100px;
-            background: rgba(0,0,0,0.8);
-            border: 2px solid var(--primary);
-            border-radius: 8px;
-            padding: 12px;
-            overflow-y: auto;
-            font-size: 12px;
-            line-height: 1.5;
-            margin-top: 15px;
-        }
-        
-        .log-message {
-            margin: 3px 0;
-            padding: 2px 5px;
-        }
-        
-        .log-damage { color: #ff4444; }
-        .log-heal { color: #44ff44; }
-        .log-victory { color: #ffff44; font-weight: bold; }
-        .log-normal { color: var(--text-muted); }
-        
-        /* ========== ========== */
-        /* MODULE 2: CHARACTER SCENE */
-        /* ========== ========== */
-        
-        #characterScene {
-            background: rgba(0,0,0,0.3);
-            align-items: center;
-        }
-        
-        .character-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            width: 100%;
-            max-width: 1000px;
-            background: rgba(0,0,0,0.6);
-            border: var(--border);
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: var(--shadow);
-        }
-        
-        .character-visual {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-        }
-        
-        .equipment-slot {
-            background: rgba(0,100,200,0.3);
-            border: 2px solid var(--secondary);
-            border-radius: 10px;
-            padding: 15px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            min-height: 120px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .equipment-slot:hover {
-            background: rgba(0,150,255,0.5);
-            transform: translateY(-3px);
-            box-shadow: 0 0 15px var(--secondary);
-        }
-        
-        .equipment-icon {
-            font-size: 40px;
-        }
-        
-        .equipment-label {
-            font-size: 11px;
-            color: var(--secondary);
-            font-weight: bold;
-        }
-        
-        .equipment-item {
-            font-size: 12px;
-            color: var(--primary);
-        }
-        
-        .character-stats {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        
-        .stats-title {
-            font-size: 18px;
-            color: var(--primary);
-            font-weight: bold;
-            border-bottom: 2px solid var(--primary);
-            padding-bottom: 10px;
-        }
-        
-        .stat-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            background: rgba(0,100,200,0.2);
-            border-left: 3px solid var(--secondary);
-            border-radius: 5px;
-            font-size: 13px;
-        }
-        
-        .stat-name {
-            color: var(--secondary);
-            font-weight: bold;
-        }
-        
-        .stat-value {
-            color: var(--primary);
-            font-weight: bold;
-            font-size: 14px;
-        }
-        
-        .stat-increase {
-            color: var(--success);
-            margin-left: 8px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        
-        /* ========== ========== */
-        /* MODULE 3: CITY SCENE */
-        /* ========== ========== */
-        
-        #cityScene {
-            background: rgba(0,0,0,0.3);
-            align-items: center;
-        }
-        
-        .city-title {
-            font-size: 24px;
-            color: var(--primary);
-            margin-bottom: 25px;
-            text-align: center;
-            letter-spacing: 3px;
-            text-shadow: 0 0 10px var(--primary);
-        }
-        
-        .city-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 15px;
-            width: 100%;
-            max-width: 900px;
-        }
-        
-        .building {
-            background: rgba(0,100,200,0.4);
-            border: 2px solid var(--secondary);
-            border-radius: 10px;
-            padding: 18px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 140px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .building::before {
-            content: '';
+        .combat-text {
             position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.3s;
-        }
-        
-        .building:hover {
-            background: rgba(0,150,255,0.6);
-            transform: translateY(-8px);
-            box-shadow: 0 8px 25px rgba(0,212,255,0.4);
-        }
-        
-        .building:hover::before {
-            left: 100%;
-        }
-        
-        .building-icon {
-            font-size: 50px;
-            margin-bottom: 10px;
-            display: block;
-        }
-        
-        .building-name {
+            animation: combat-float 1s ease-out forwards;
             font-weight: bold;
-            color: var(--primary);
-            font-size: 13px;
-            margin-bottom: 5px;
+            font-size: 1.5rem;
+            z-index: 100;
         }
-        
-        .building-reward {
-            font-size: 11px;
-            color: var(--secondary);
-        }
-        
-        /* ========== ========== */
-        /* MODULE 4: BUTTONS */
-        /* ========== ========== */
-        
-        .btn {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: var(--dark);
-            border: none;
-            padding: 14px 28px;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-family: 'Courier New', monospace;
-            box-shadow: 0 4px rgba(0,255,136,0.3);
-        }
-        
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px rgba(0,255,136,0.5);
-        }
-        
-        .btn:active {
-            transform: translateY(-1px);
-        }
-        
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-        
-        /* ========== ========== */
-        /* MODULE 5: MODALS */
-        /* ========== ========== */
-        
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.95);
-            animation: fadeIn 0.3s;
-        }
-        
-        .modal.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal-content {
-            background: linear-gradient(135deg, #1a1a2e 0%, #0f3a4a 100%);
-            border: var(--border);
-            border-radius: 15px;
-            padding: 30px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: var(--shadow);
-        }
-        
-        .modal-header {
-            font-size: 18px;
-            font-weight: bold;
-            color: var(--primary);
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--primary);
-            padding-bottom: 10px;
-        }
-        
-        .close-btn {
-            background: var(--accent);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 15px;
-            width: 100%;
-            font-weight: bold;
-        }
-        
-        /* ========== ========== */
-        /* MODULE 6: RESPONSIVE */
-        /* ========== ========== */
-        
-        @media (max-width: 768px) {
-            .battle-arena {
-                height: 400px;
-                gap: 30px;
-                padding: 15px;
-            }
-            
-            .fighter-sprite {
-                width: 120px;
-                height: 120px;
-                font-size: 70px;
-            }
-            
-            .character-container {
-                grid-template-columns: 1fr;
-            }
-            
-            .city-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .header {
-                flex-direction: column;
-                gap: 10px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .battle-arena {
-                height: 300px;
-                gap: 15px;
-                padding: 10px;
-            }
-            
-            .fighter-sprite {
-                width: 80px;
-                height: 80px;
-                font-size: 50px;
-            }
-            
-            .city-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .stat-badge {
-                min-width: 80px;
-                font-size: 11px;
-            }
+        @keyframes combat-float {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-100px); opacity: 0; }
         }
     </style>
 </head>
-<body>
-    <div id="gameContainer">
-        <!-- HEADER / NAVEGACIÓN -->
-        <div id="header">
-            <div class="header-title">
-                ⚔️ PARDO RPG PRO
+<body class="bg-gray-900 text-rpg-text min-h-screen p-2 sm:p-4">
+
+    <!-- Navegación -->
+    <div class="max-w-7xl mx-auto mb-4 flex justify-between items-center bg-rpg-dark p-3 rounded-lg">
+        <div class="flex space-x-4">
+            <button onclick="showScreen('character')" class="px-4 py-2 bg-rpg-accent rounded-lg font-bold">Personaje</button>
+            <button onclick="showScreen('missions')" class="px-4 py-2 bg-rpg-inactive hover:bg-rpg-accent rounded-lg font-bold" id="missions-tab">Misiones</button>
+            <button onclick="showScreen('marketplace')" class="px-4 py-2 bg-rpg-inactive hover:bg-rpg-accent rounded-lg font-bold">Tienda</button>
+            <button onclick="showScreen('pvp')" class="px-4 py-2 bg-rpg-inactive hover:bg-rpg-accent rounded-lg font-bold" id="pvp-tab">PVP</button>
+        </div>
+        <div class="flex items-center space-x-4 text-sm">
+            <span class="text-rpg-gold">💰 <span id="gold-display">0</span> Oro</span>
+            <span>Nv.<span id="level-display">1</span></span>
+        </div>
+    </div>
+
+    <!-- Pantalla Principal: Personaje -->
+    <div id="character-screen" class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Columna 1: Stats -->
+        <div class="bg-rpg-dark p-4 rounded-xl shadow-2xl space-y-4">
+            <h2 class="text-xl font-bold text-rpg-accent border-b border-gray-700 pb-2">PERSONAJE</h2>
+            <div class="flex justify-center mb-4">
+                <img src="https://placehold.co/120x120/3b82f6/f8fafc?text=HEROE" class="rounded-full border-4 border-rpg-accent w-32 h-32">
             </div>
-            <div class="header-nav">
-                <button class="nav-btn active" onclick="switchScene('combat')">🔥 Combate</button>
-                <button class="nav-btn" onclick="switchScene('character')">👤 Personaje</button>
-                <button class="nav-btn" onclick="switchScene('city')">🏘️ Ciudad</button>
+            <div class="space-y-2">
+                <div class="flex justify-between"><span>Nivel:</span><span id="char-level">1</span></div>
+                <div class="flex justify-between"><span>EXP:</span><span><span id="current-exp">0</span>/<span id="exp-needed">100</span></span></div>
+                <div class="w-full bg-rpg-inactive rounded-full h-2">
+                    <div id="exp-bar" class="bg-blue-500 h-2 rounded-full" style="width: 0%"></div>
+                </div>
             </div>
-            <div class="header-stats">
-                <div class="stat-badge">💰 <strong id="goldStat">0</strong></div>
-                <div class="stat-badge">✨ <strong id="pointsStat">0</strong></div>
-                <div class="stat-badge">⭐ <strong id="levelStat">1</strong></div>
-                <div class="stat-badge">❤️ <strong id="hpStat">100/100</strong></div>
+            <div class="pt-2">
+                <span class="text-sm font-medium">HP: <span id="char-hp-current">100</span> / <span id="char-hp-max">100</span></span>
+                <div class="w-full bg-rpg-inactive rounded-full h-3 mt-1">
+                    <div id="hp-bar" class="bg-rpg-hp h-3 rounded-full stat-bar" style="width: 100%"></div>
+                </div>
+            </div>
+            <div id="stats-container" class="space-y-2 pt-4 border-t border-gray-700">
+                <h3 class="font-bold text-rpg-stat">ATRIBUTOS</h3>
+                <div class="flex justify-between"><span>Poder:</span><span id="stat-power">10</span></div>
+                <div class="flex justify-between"><span>Destreza:</span><span id="stat-dexterity">10</span></div>
+                <div class="flex justify-between"><span>Aguante:</span><span id="stat-endurance">10</span></div>
             </div>
         </div>
 
-        <!-- CONTENIDO PRINCIPAL -->
-        <div id="mainContent">
-            
-            <!-- ========== SCENE 1: COMBAT ========== -->
-            <div id="combatScene" class="scene active">
-                <h2 class="combat-title">⚔️ ARENA DE BATALLA</h2>
-                
-                <div class="battle-arena">
-                    <!-- JUGADOR -->
-                    <div class="fighter">
-                        <div class="fighter-sprite" id="playerSprite">🐱</div>
-                        <div class="fighter-name" id="playerName">Pardo</div>
-                        <div class="fighter-level" id="playerLevel">Nivel 1</div>
-                        <div class="fighter-hp">
-                            <div class="hp-bar" id="playerHpBar" style="width: 100%;">100/100</div>
-                        </div>
+        <!-- Columna 2: Equipamiento -->
+        <div class="bg-rpg-dark p-4 rounded-xl shadow-2xl">
+            <h2 class="text-xl font-bold text-rpg-accent border-b border-gray-700 pb-2 mb-4">EQUIPAMIENTO</h2>
+            <div id="gear-slots" class="grid grid-cols-2 gap-3"></div>
+        </div>
+
+        <!-- Columna 3: Asignación de Puntos -->
+        <div class="bg-rpg-dark p-4 rounded-xl shadow-2xl">
+            <h2 class="text-xl font-bold text-rpg-accent border-b border-gray-700 pb-2 mb-4">PUNTOS</h2>
+            <div class="bg-gray-800 p-3 rounded-lg mb-4">
+                <h3 class="text-lg font-bold mb-3">Puntos: <span id="points-available" class="text-yellow-400">0</span></h3>
+                <div id="allocation-ui" class="space-y-2"></div>
+                <button onclick="confirmAllocation()" id="confirm-btn" class="w-full py-2 mt-3 bg-rpg-inactive rounded-lg font-bold" disabled>Confirmar</button>
+            </div>
+            <div id="app-message" class="p-2 text-center text-sm bg-gray-800 rounded"></div>
+        </div>
+    </div>
+
+    <!-- Pantalla Misiones PVE -->
+    <div id="missions-screen" class="hidden max-w-7xl mx-auto">
+        <div class="bg-rpg-dark p-6 rounded-xl">
+            <h2 class="text-2xl font-bold text-rpg-accent mb-6">MISIONES (Nivel 1-10)</h2>
+            <div id="missions-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
+    </div>
+
+    <!-- Pantalla Marketplace -->
+    <div id="marketplace-screen" class="hidden max-w-7xl mx-auto">
+        <div class="bg-rpg-dark p-6 rounded-xl">
+            <h2 class="text-2xl font-bold text-rpg-accent mb-4">MARKETPLACE</h2>
+            <div class="flex space-x-2 mb-4 overflow-x-auto">
+                <button onclick="filterMarketplace('all')" class="px-4 py-2 bg-rpg-accent rounded-lg whitespace-nowrap">Todos</button>
+                <button onclick="filterMarketplace('Weapon')" class="px-4 py-2 bg-rpg-inactive rounded-lg whitespace-nowrap">Armas</button>
+                <button onclick="filterMarketplace('Armor')" class="px-4 py-2 bg-rpg-inactive rounded-lg whitespace-nowrap">Armaduras</button>
+                <button onclick="filterMarketplace('Helmet')" class="px-4 py-2 bg-rpg-inactive rounded-lg whitespace-nowrap">Cascos</button>
+                <button onclick="filterMarketplace('Shield')" class="px-4 py-2 bg-rpg-inactive rounded-lg whitespace-nowrap">Escudos</button>
+            </div>
+            <div id="marketplace-items" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
+    </div>
+
+    <!-- Pantalla PVP -->
+    <div id="pvp-screen" class="hidden max-w-7xl mx-auto">
+        <div class="bg-rpg-dark p-6 rounded-xl text-center">
+            <h2 class="text-2xl font-bold text-rpg-accent mb-4">COMBATE PVP (Nivel 10+)</h2>
+            <button onclick="joinPVPQueue()" id="pvp-join-btn" class="px-8 py-4 bg-yellow-500 hover:bg-yellow-600 rounded-lg font-bold text-2xl pulse-glow">BUSCAR BATALLA</button>
+            <p id="pvp-status" class="mt-4 text-gray-400"></p>
+        </div>
+    </div>
+
+    <!-- Modal de Combate -->
+    <div id="combat-modal" class="hidden fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
+        <div class="bg-rpg-dark p-6 rounded-xl w-11/12 max-w-4xl relative">
+            <div class="flex justify-between items-center mb-4">
+                <div class="text-center flex-1">
+                    <h3 class="font-bold text-xl mb-2" id="combat-player-name">TÚ</h3>
+                    <div class="w-full bg-rpg-inactive rounded-full h-4">
+                        <div id="combat-player-hp-bar" class="bg-rpg-hp h-4 rounded-full" style="width: 100%"></div>
                     </div>
-                    
-                    <div class="vs-text">VS</div>
-                    
-                    <!-- ENEMIGO -->
-                    <div class="fighter">
-                        <div class="fighter-sprite" id="enemySprite">👹</div>
-                        <div class="fighter-name" id="enemyName">Enemigo</div>
-                        <div class="fighter-level" id="enemyLevel">Nivel 1</div>
-                        <div class="fighter-hp">
-                            <div class="hp-bar" id="enemyHpBar" style="width: 100%;">80/80</div>
-                        </div>
+                    <p id="combat-player-hp-text" class="text-sm mt-1">HP: 100/100</p>
+                </div>
+                <div class="mx-8 text-4xl">⚔️</div>
+                <div class="text-center flex-1">
+                    <h3 class="font-bold text-xl mb-2" id="combat-enemy-name">ENEMIGO</h3>
+                    <div class="w-full bg-rpg-inactive rounded-full h-4">
+                        <div id="combat-enemy-hp-bar" class="bg-rpg-hp h-4 rounded-full" style="width: 100%"></div>
                     </div>
-                </div>
-
-                <div class="combat-controls">
-                    <select id="enemySelect">
-                        <option value="">Selecciona enemigo...</option>
-                        <option value="goblin">👹 Goblin (Lvl 1-5)</option>
-                        <option value="orco">🗡️ Orco (Lvl 5-10)</option>
-                        <option value="dragon">🐉 Dragón (Lvl 15-25)</option>
-                        <option value="troll">👿 Troll (Lvl 10-15)</option>
-                        <option value="mago">🧙 Mago Oscuro (Lvl 12-20)</option>
-                        <option value="pajaro">🦅 Pájaro (Lvl 3-8)</option>
-                        <option value="gargola">🗿 Gárgola (Lvl 8-12)</option>
-                        <option value="perro">🐕 Perro (Lvl 2-6)</option>
-                        <option value="zombie">🧟 Zombie (Lvl 6-11)</option>
-                    </select>
-
-                    <button class="btn" id="btnStart" onclick="startBattle()">🎯 Iniciar Batalla</button>
-                    <button class="btn" id="btnAttack" onclick="playerAttack()" style="display:none;">💥 ATACAR</button>
-                </div>
-
-                <div class="combat-log" id="combatLog">
-                    <div class="log-message log-normal">Selecciona un enemigo y prepárate para la batalla</div>
+                    <p id="combat-enemy-hp-text" class="text-sm mt-1">HP: 100/100</p>
                 </div>
             </div>
-
-            <!-- ========== SCENE 2: CHARACTER ========== -->
-            <div id="characterScene" class="scene">
-                <h2 class="combat-title">👤 MI PERSONAJE</h2>
-                
-                <div class="character-container">
-                    <!-- VISUAL DEL PERSONAJE -->
-                    <div>
-                        <div class="character-visual">
-                            <div class="equipment-slot">
-                                <div class="equipment-icon">🪖</div>
-                                <div class="equipment-label">Casco</div>
-                                <div class="equipment-item" id="headItem">-</div>
-                            </div>
-                            <div class="equipment-slot">
-                                <div class="equipment-icon">🛡️</div>
-                                <div class="equipment-label">Armadura</div>
-                                <div class="equipment-item" id="bodyItem">-</div>
-                            </div>
-                            <div class="equipment-slot">
-                                <div class="equipment-icon">🥊</div>
-                                <div class="equipment-label">Guantes</div>
-                                <div class="equipment-item" id="handsItem">-</div>
-                            </div>
-                            <div class="equipment-slot">
-                                <div class="equipment-icon">👢</div>
-                                <div class="equipment-label">Botas</div>
-                                <div class="equipment-item" id="legsItem">-</div>
-                            </div>
-                            <div class="equipment-slot">
-                                <div class="equipment-icon">🗡️</div>
-                                <div class="equipment-label">Arma</div>
-                                <div class="equipment-item" id="weaponItem">Puño</div>
-                            </div>
-                            <div class="equipment-slot">
-                                <div class="equipment-icon">🛡️</div>
-                                <div class="equipment-label">Escudo</div>
-                                <div class="equipment-item" id="shieldItem">-</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- ESTADÍSTICAS -->
-                    <div class="character-stats">
-                        <div class="stats-title">📊 ESTADÍSTICAS</div>
-                        
-                        <div class="stat-row">
-                            <span class="stat-name">❤️ Salud</span>
-                            <span class="stat-value" id="statHealth">100</span>
-                            <span class="stat-increase" onclick="increasestat('health')">+</span>
-                        </div>
-                        
-                        <div class="stat-row">
-                            <span class="stat-name">⚔️ Ataque</span>
-                            <span class="stat-value" id="statAttack">10</span>
-                            <span class="stat-increase" onclick="increaseStat('attack')">+</span>
-                        </div>
-                        
-                        <div class="stat-row">
-                            <span class="stat-name">🛡️ Defensa</span>
-                            <span class="stat-value" id="statDefense">0</span>
-                            <span class="stat-increase" onclick="increaseStat('defense')">+</span>
-                        </div>
-                        
-                        <div class="stat-row">
-                            <span class="stat-name">⚡ Velocidad</span>
-                            <span class="stat-value" id="statSpeed">5</span>
-                            <span class="stat-increase" onclick="increaseStat('speed')">+</span>
-                        </div>
-                        
-                        <div class="stat-row">
-                            <span class="stat-name">💫 Crítico</span>
-                            <span class="stat-value" id="statCrit">5%</span>
-                            <span class="stat-increase" onclick="increaseStat('crit')">+</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="text-center mb-4">
+                <p class="text-3xl font-bold" id="combat-timer">60</p>
+                <p class="text-sm text-gray-400">Ronda <span id="combat-round">1</span>/3</p>
             </div>
-
-            <!-- ========== SCENE 3: CITY ========== -->
-            <div id="cityScene" class="scene">
-                <h2 class="city-title">🏘️ TU CIUDAD</h2>
-                
-                <div class="city-grid">
-                    <div class="building" onclick="farmRewards('granja')">
-                        <span class="building-icon">🌾</span>
-                        <div class="building-name">Granja</div>
-                        <div class="building-reward">+50 💰</div>
-                    </div>
-                    
-                    <div class="building" onclick="farmRewards('mina')">
-                        <span class="building-icon">⛏️</span>
-                        <div class="building-name">Mina</div>
-                        <div class="building-reward">+100 💰</div>
-                    </div>
-                    
-                    <div class="building" onclick="farmRewards('templo')">
-                        <span class="building-icon">🏛️</span>
-                        <div class="building-name">Templo</div>
-                        <div class="building-reward">+100 ✨</div>
-                    </div>
-                    
-                    <div class="building" onclick="farmRewards('torre')">
-                        <span class="building-icon">🗼</span>
-                        <div class="building-name">Torre Mágica</div>
-                        <div class="building-reward">+150 💰</div>
-                    </div>
-                    
-                    <div class="building" onclick="farmRewards('castillo')">
-                        <span class="building-icon">🏰</span>
-                        <div class="building-name">Castillo</div>
-                        <div class="building-reward">+300 💰</div>
-                    </div>
-                    
-                    <div class="building" onclick="farmRewards('tienda')">
-                        <span class="building-icon">🏪</span>
-                        <div class="building-name">Tienda</div>
-                        <div class="building-reward">Próximamente</div>
-                    </div>
-                </div>
+            <div id="combat-log" class="bg-gray-800 p-4 rounded-lg h-40 overflow-y-auto mb-4 text-sm"></div>
+            <div class="flex justify-center space-x-4">
+                <button onclick="playerAttack()" id="attack-btn" class="px-8 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-xl">ATACAR</button>
+                <button onclick="playerDefend()" id="defend-btn" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold text-xl">DEFENDER</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL COMBATE -->
-    <div id="combatModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">⚔️ Resultado de Batalla</div>
-            <div id="modalMessage"></div>
-            <button class="btn" onclick="closeBattleModal()" style="margin-top: 15px;">Aceptar</button>
-        </div>
-    </div>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    <script>
-        // ============================================================
-        // PARDO RPG PRO - FRONTEND MODULAR
-        // ============================================================
+        // Firebase Config (injected by Claude Artifact system)
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        // ========== MODULE: CONFIGURATION ==========
-        const CONFIG = {
-            API_URL: "https://tu-dominio.com/api", // Cambiar a tu URL
-            SPRITES: {
-                // Cambiar aquí las rutas de sprites
-                pardo: "🐱",
-                goblin: "👹",
-                orco: "🗡️",
-                dragon: "🐉",
-                troll: "👿",
-                mago: "🧙",
-                pajaro: "🦅",
-                gargola: "🗿",
-                zombie: "🧟",
-                perro: "🐕"
-            },
-            LEVEL_MULTIPLIER: 1.05, // +5% por nivel
-            BASE_STATS: {
-                health: 100,
-                attack: 10,
-                defense: 0,
-                speed: 5,
-                crit_chance: 5
-            }
-        };
+        let app, db, auth, userId = 'demo_user';
+        
+        // Backend Flask URL (MODIFICAR SEGÚN TU DEPLOY)
+        const API_URL = 'http://localhost:5000';
 
-        // ========== MODULE: GAME STATE ==========
+        // Estado del juego
         let gameState = {
-            user: {
-                telegram_id: null,
-                username: "Jugador",
-                level: 1,
-                xp: 0,
-                next_level_xp: 100,
-                gold: 0,
-                airdrop_points: 0,
+            level: 1,
+            currentExp: 0,
+            expToNextLevel: 100,
+            gold: 0,
+            currentHP: 100,
+            maxHP: 100,
+            pointsToAllocate: 0,
+            stats: { power: 10, dexterity: 10, endurance: 10 },
+            equipped: { Weapon: null, Shield: null, Boots: null, Gloves: null, Helmet: null, Armor: null, Amulet: null, Ring: null },
+            inventory: [],
+            statCache: {},
+            pvpStats: { wins: 0, losses: 0 }
+        };
+
+        const levelLocks = { Weapon: 5, Shield: 10, Boots: 20, Gloves: 35, Helmet: 50, Armor: 60, Amulet: 70, Ring: 80 };
+
+        // ==================== FIREBASE ====================
+        const initFirebase = async () => {
+            try {
+                if (Object.keys(firebaseConfig).length === 0) throw new Error("Firebase config missing");
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
                 
-                stats: {
-                    health: 100,
-                    attack: 10,
-                    defense: 0,
-                    speed: 5,
-                    crit_chance: 5
-                },
-                
-                equipment: {
-                    head: null,
-                    body: null,
-                    hands: null,
-                    legs: null,
-                    weapon: null,
-                    shield: null
-                },
-                
-                stats_total: {
-                    total_battles: 0,
-                    total_victories: 0,
-                    total_defeats: 0,
-                    current_streak: 0,
-                    best_streak: 0
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
                 }
-            },
-            
-            current_enemy: null,
-            in_battle: false,
-            battle_log: []
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        loadCharacter();
+                    } else {
+                        renderUI();
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase error:", error);
+                showMessage("Error de conexión. Modo demo activado.");
+                renderUI();
+            }
         };
 
-        // ========== MODULE: ENEMY DATA ==========
-        const ENEMIES = {
-            goblin: { name: "Goblin", emoji: "👹", minLvl: 1, maxLvl: 5, baseHp: 40, baseDmg: 5 },
-            orco: { name: "Orco", emoji: "🗡️", minLvl: 5, maxLvl: 10, baseHp: 60, baseDmg: 8 },
-            dragon: { name: "Dragón", emoji: "🐉", minLvl: 15, maxLvl: 25, baseHp: 150, baseDmg: 15 },
-            troll: { name: "Troll", emoji: "👿", minLvl: 10, maxLvl: 15, baseHp: 80, baseDmg: 10 },
-            mago: { name: "Mago Oscuro", emoji: "🧙", minLvl: 12, maxLvl: 20, baseHp: 60, baseDmg: 12 },
-            pajaro: { name: "Pájaro", emoji: "🦅", minLvl: 3, maxLvl: 8, baseHp: 35, baseDmg: 4 },
-            gargola: { name: "Gárgola", emoji: "🗿", minLvl: 8, maxLvl: 12, baseHp: 70, baseDmg: 7 },
-            perro: { name: "Perro", emoji: "🐕", minLvl: 2, maxLvl: 6, baseHp: 30, baseDmg: 3 },
-            zombie: { name: "Zombie", emoji: "🧟", minLvl: 6, maxLvl: 11, baseHp: 50, baseDmg: 6 }
+        const getCharacterRef = () => doc(db, `/artifacts/${appId}/users/${userId}/character_data/main`);
+
+        const saveCharacter = async () => {
+            if (!db || !userId) return;
+            try {
+                const toSave = { ...gameState };
+                delete toSave.statCache;
+                await setDoc(getCharacterRef(), toSave);
+                showMessage("Progreso guardado");
+            } catch (error) {
+                console.error("Save error:", error);
+            }
         };
 
-        // ========== MODULE: UI FUNCTIONS ==========
-        function switchScene(scene) {
-            document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            
-            if (scene === 'combat') {
-                document.getElementById('combatScene').classList.add('active');
-                document.querySelectorAll('.nav-btn')[0].classList.add('active');
-            } else if (scene === 'character') {
-                document.getElementById('characterScene').classList.add('active');
-                document.querySelectorAll('.nav-btn')[1].classList.add('active');
-            } else if (scene === 'city') {
-                document.getElementById('cityScene').classList.add('active');
-                document.querySelectorAll('.nav-btn')[2].classList.add('active');
+        const loadCharacter = async () => {
+            if (!db || !userId) return;
+            try {
+                const docSnap = await getDoc(getCharacterRef());
+                if (docSnap.exists()) {
+                    gameState = { ...gameState, ...docSnap.data(), statCache: {} };
+                } else {
+                    await saveCharacter();
+                }
+                renderUI();
+            } catch (error) {
+                console.error("Load error:", error);
+                renderUI();
             }
-        }
+        };
 
-        function updateUI() {
-            // Header Stats
-            document.getElementById('goldStat').textContent = gameState.user.gold;
-            document.getElementById('pointsStat').textContent = gameState.user.airdrop_points;
-            document.getElementById('levelStat').textContent = gameState.user.level;
-            document.getElementById('hpStat').textContent = `${gameState.user.stats.health}/${gameState.user.stats.health}`;
+        // ==================== UI ====================
+        window.showScreen = (screen) => {
+            ['character', 'missions', 'marketplace', 'pvp'].forEach(s => {
+                document.getElementById(`${s}-screen`).classList.toggle('hidden', s !== screen);
+            });
             
-            // Character Stats
-            document.getElementById('statHealth').textContent = gameState.user.stats.health;
-            document.getElementById('statAttack').textContent = gameState.user.stats.attack;
-            document.getElementById('statDefense').textContent = gameState.user.stats.defense;
-            document.getElementById('statSpeed').textContent = gameState.user.stats.speed;
-            document.getElementById('statCrit').textContent = gameState.user.stats.crit_chance + "%";
-            
-            // Battle HP
-            if (gameState.current_enemy) {
-                const playerHpPct = (gameState.user.stats.health / gameState.user.stats.health) * 100;
-                const enemyHpPct = (gameState.current_enemy.hp / gameState.current_enemy.maxHp) * 100;
-                
-                document.getElementById('playerHpBar').style.width = Math.max(0, playerHpPct) + '%';
-                document.getElementById('playerHpBar').textContent = `${Math.max(0, gameState.user.stats.health)}/${gameState.user.stats.health}`;
-                
-                document.getElementById('enemyHpBar').style.width = Math.max(0, enemyHpPct) + '%';
-                document.getElementById('enemyHpBar').textContent = `${Math.max(0, gameState.current_enemy.hp)}/${gameState.current_enemy.maxHp}`;
-            }
-        }
+            if (screen === 'missions') loadMissions();
+            if (screen === 'marketplace') loadMarketplace();
+        };
 
-        function addLog(message, type = 'normal') {
-            const log = document.getElementById('combatLog');
-            const entry = document.createElement('div');
-            entry.className = `log-message log-${type}`;
-            entry.textContent = message;
-            log.appendChild(entry);
-            log.scrollTop = log.scrollHeight;
+        const renderUI = () => {
+            // Stats principales
+            document.getElementById('char-level').textContent = gameState.level;
+            document.getElementById('level-display').textContent = gameState.level;
+            document.getElementById('gold-display').textContent = gameState.gold;
+            document.getElementById('current-exp').textContent = gameState.currentExp;
+            document.getElementById('exp-needed').textContent = gameState.expToNextLevel;
+            document.getElementById('points-available').textContent = gameState.pointsToAllocate;
             
-            if (log.children.length > 10) {
-                log.removeChild(log.firstChild);
-            }
-        }
+            // EXP Bar
+            const expPercent = (gameState.currentExp / gameState.expToNextLevel) * 100;
+            document.getElementById('exp-bar').style.width = `${expPercent}%`;
+            
+            // HP
+            const finalStats = calculateFinalStats();
+            gameState.maxHP = finalStats.maxHP;
+            gameState.currentHP = Math.min(gameState.currentHP, gameState.maxHP);
+            
+            document.getElementById('char-hp-current').textContent = gameState.currentHP;
+            document.getElementById('char-hp-max').textContent = gameState.maxHP;
+            const hpPercent = (gameState.currentHP / gameState.maxHP) * 100;
+            document.getElementById('hp-bar').style.width = `${hpPercent}%`;
+            
+            // Stats
+            document.getElementById('stat-power').textContent = finalStats.power;
+            document.getElementById('stat-dexterity').textContent = finalStats.dexterity;
+            document.getElementById('stat-endurance').textContent = finalStats.endurance;
+            
+            renderGearSlots();
+            renderAllocationUI();
+            updatePVPAccess();
+        };
 
-        // ========== MODULE: COMBAT SYSTEM ==========
-        function startBattle() {
-            if (gameState.in_battle) return;
-            
-            const enemyKey = document.getElementById('enemySelect').value;
-            const enemy = ENEMIES[enemyKey];
-            
-            if (!enemy) {
-                addLog("Selecciona un enemigo válido", 'damage');
-                return;
+        const calculateFinalStats = () => {
+            const stats = { ...gameState.stats };
+            Object.values(gameState.equipped).forEach(item => {
+                if (item) {
+                    for (const stat in item.stats) {
+                        stats[stat] = (stats[stat] || 0) + item.stats[stat];
+                    }
+                }
+            });
+            stats.maxHP = 100 + (gameState.level * 10) + (stats.endurance * 5);
+            return stats;
+        };
+
+        const renderGearSlots = () => {
+            const container = document.getElementById('gear-slots');
+            container.innerHTML = Object.keys(levelLocks).map(slot => {
+                const locked = gameState.level < levelLocks[slot];
+                const item = gameState.equipped[slot];
+                return `
+                    <div class="p-3 rounded-lg ${locked ? 'bg-rpg-inactive opacity-60' : 'bg-gray-800 hover:bg-gray-700 cursor-pointer'}"
+                         ${!locked ? `onclick="openGearModal('${slot}')"` : ''}>
+                        <p class="font-bold text-sm ${locked ? 'text-gray-400' : 'text-rpg-accent'}">${slot}</p>
+                        <p class="text-xs truncate">${locked ? `Nv.${levelLocks[slot]}` : (item ? item.name : 'VACÍO')}</p>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        const renderAllocationUI = () => {
+            const container = document.getElementById('allocation-ui');
+            const tempStats = {};
+            for (const key in gameState.stats) {
+                tempStats[key] = gameState.stats[key] + (gameState.statCache[key] || 0);
             }
             
-            const lvl = Math.floor(Math.random() * (enemy.maxLvl - enemy.minLvl + 1)) + enemy.minLvl;
-            const hp = enemy.baseHp + lvl * 5;
+            container.innerHTML = ['power', 'dexterity', 'endurance'].map(stat => `
+                <div class="flex justify-between items-center">
+                    <span class="capitalize">${stat}: <span class="text-rpg-stat">${tempStats[stat]}</span></span>
+                    <div class="flex space-x-2">
+                        <button onclick="adjustStat('${stat}', -1)" class="px-3 py-1 bg-red-600 rounded">-</button>
+                        <button onclick="adjustStat('${stat}', 1)" class="px-3 py-1 bg-green-600 rounded" ${gameState.pointsToAllocate > 0 ? '' : 'disabled'}>+</button>
+                    </div>
+                </div>
+            `).join('');
             
-            gameState.current_enemy = {
-                name: enemy.name,
-                emoji: enemy.emoji,
-                level: lvl,
-                hp: hp,
-                maxHp: hp,
-                dmg: enemy.baseDmg + lvl
+            const hasChanges = Object.values(gameState.statCache).some(v => v > 0);
+            document.getElementById('confirm-btn').disabled = !hasChanges;
+            document.getElementById('confirm-btn').classList.toggle('bg-rpg-accent', hasChanges);
+            document.getElementById('confirm-btn').classList.toggle('bg-rpg-inactive', !hasChanges);
+        };
+
+        window.adjustStat = (stat, delta) => {
+            if (delta > 0 && gameState.pointsToAllocate <= 0) return;
+            if (delta < 0 && (gameState.statCache[stat] || 0) <= 0) return;
+            
+            gameState.pointsToAllocate -= delta;
+            gameState.statCache[stat] = (gameState.statCache[stat] || 0) + delta;
+            renderAllocationUI();
+            document.getElementById('points-available').textContent = gameState.pointsToAllocate;
+        };
+
+        window.confirmAllocation = () => {
+            for (const stat in gameState.statCache) {
+                gameState.stats[stat] += gameState.statCache[stat];
+            }
+            gameState.statCache = {};
+            renderUI();
+            saveCharacter();
+            showMessage("¡Puntos asignados!");
+        };
+
+        const updatePVPAccess = () => {
+            const pvpTab = document.getElementById('pvp-tab');
+            const pvpBtn = document.getElementById('pvp-join-btn');
+            const pvpStatus = document.getElementById('pvp-status');
+            
+            if (gameState.level >= 10) {
+                pvpTab.classList.remove('opacity-50');
+                pvpBtn.disabled = false;
+                pvpStatus.textContent = "¡Listo para el combate!";
+            } else {
+                pvpTab.classList.add('opacity-50');
+                pvpBtn.disabled = true;
+                pvpStatus.textContent = `Nivel requerido: 10 (Actual: ${gameState.level})`;
+            }
+        };
+
+        // ==================== MISIONES PVE ====================
+        const loadMissions = () => {
+            const container = document.getElementById('missions-list');
+            const missions = [
+                { id: 1, name: "Rata Salvaje", level: 1 },
+                { id: 2, name: "Lobo Hambriento", level: 2 },
+                { id: 3, name: "Goblin Ladrón", level: 3 },
+                { id: 4, name: "Orco Guerrero", level: 4 },
+                { id: 5, name: "Troll de Piedra", level: 5 },
+                { id: 6, name: "Araña Gigante", level: 6 },
+                { id: 7, name: "Caballero Oscuro", level: 7 },
+                { id: 8, name: "Demonio Menor", level: 8 },
+                { id: 9, name: "Dragón Joven", level: 9 },
+                { id: 10, name: "Señor Oscuro", level: 10 }
+            ];
+            
+            container.innerHTML = missions.map(m => `
+                <div class="bg-gray-800 p-4 rounded-lg ${gameState.level < m.level ? 'opacity-50' : 'hover:bg-gray-700 cursor-pointer'}"
+                     ${gameState.level >= m.level ? `onclick="startMission(${m.id})"` : ''}>
+                    <h3 class="font-bold text-lg">${m.name}</h3>
+                    <p class="text-sm text-gray-400">Nivel recomendado: ${m.level}</p>
+                    <button class="mt-2 px-4 py-2 bg-rpg-accent rounded-lg w-full font-bold" ${gameState.level < m.level ? 'disabled' : ''}>
+                        ${gameState.level < m.level ? 'BLOQUEADO' : 'INICIAR'}
+                    </button>
+                </div>
+            `).join('');
+        };
+
+        window.startMission = async (missionId) => {
+            // Restaurar HP al 100%
+            gameState.currentHP = gameState.maxHP;
+            renderUI();
+            
+            try {
+                const response = await fetch(`${API_URL}/api/pve/mission/${missionId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_stats: calculateFinalStats() })
+                });
+                const data = await response.json();
+                startCombat(data.enemy, 'pve', missionId);
+            } catch (error) {
+                console.error("Error starting mission:", error);
+                showMessage("Error al iniciar misión");
+            }
+        };
+
+        // ==================== COMBATE ====================
+        let combatState = null;
+
+        const startCombat = (enemy, type, missionId = null) => {
+            const playerStats = calculateFinalStats();
+            combatState = {
+                type,
+                missionId,
+                player: { hp: gameState.currentHP, maxHP: gameState.maxHP, stats: playerStats },
+                enemy: { hp: enemy.hp, maxHP: enemy.hp, stats: enemy },
+                round: 1,
+                playerWins: 0,
+                enemyWins: 0,
+                timer: 60,
+                playerDefending: false
             };
             
-            // REINICIAR VIDA DEL JUGADOR AL 100%
-            gameState.user.stats.health = gameState.user.stats.health;
-            
-            gameState.in_battle = true;
-            
-            document.getElementById('enemySprite').textContent = enemy.emoji;
-            document.getElementById('enemyName').textContent = enemy.name;
-            document.getElementById('enemyLevel').textContent = `Nivel ${lvl}`;
-            document.getElementById('btnStart').style.display = 'none';
-            document.getElementById('btnAttack').style.display = 'block';
-            document.getElementById('enemySelect').style.display = 'none';
-            
-            addLog(`¡Comienza la batalla contra ${enemy.name} Nivel ${lvl}!`, 'victory');
-            updateUI();
-        }
-
-        function playerAttack() {
-            if (!gameState.in_battle || !gameState.current_enemy) return;
-            
-            const damage = gameState.user.stats.attack + Math.floor(Math.random() * 5);
-            const isCrit = Math.random() * 100 < gameState.user.stats.crit_chance;
-            const totalDamage = isCrit ? damage * 2 : damage;
-            
-            gameState.current_enemy.hp -= totalDamage;
-            
-            document.getElementById('playerSprite').classList.add('attacking');
-            setTimeout(() => document.getElementById('playerSprite').classList.remove('attacking'), 600);
-            
-            addLog(`🔥 ¡Atacas por ${totalDamage} daño${isCrit ? ' (CRÍTICO!)' : ''}!`, 'damage');
-            
-            if (gameState.current_enemy.hp <= 0) {
-                endBattle(true);
-                return;
-            }
-            
-            setTimeout(() => enemyAttack(), 700);
-            updateUI();
-        }
-
-        function enemyAttack() {
-            if (!gameState.in_battle) return;
-            
-            const damage = gameState.current_enemy.dmg - gameState.user.stats.defense;
-            const finalDamage = Math.max(1, damage);
-            
-            gameState.user.stats.health -= finalDamage;
-            
-            document.getElementById('enemySprite').classList.add('attacking');
-            setTimeout(() => document.getElementById('enemySprite').classList.remove('attacking'), 600);
-            
-            addLog(`⚠️ ${gameState.current_enemy.name} ataca por ${finalDamage} daño!`, 'damage');
-            
-            if (gameState.user.stats.health <= 0) {
-                endBattle(false);
-                return;
-            }
-            
-            updateUI();
-        }
-
-        function endBattle(victory) {
-            gameState.in_battle = false;
-            
-            let goldReward = 0;
-            let xpReward = 0;
-            
-            if (victory) {
-                gameState.user.level++;
-                
-                // INCREMENTO DE STATS POR NIVEL (+5% cada stat)
-                gameState.user.stats.health = Math.round(gameState.user.stats.health * 1.05);
-                gameState.user.stats.attack = Math.round(gameState.user.stats.attack * 1.05);
-                gameState.user.stats.defense = Math.round(gameState.user.stats.defense * 1.05);
-                gameState.user.stats.speed = Math.round(gameState.user.stats.speed * 1.05);
-                gameState.user.stats.crit_chance = Math.round(gameState.user.stats.crit_chance * 1.05 * 10) / 10;
-                
-                goldReward = 50 + gameState.current_enemy.level * 10;
-                xpReward = 25 + gameState.current_enemy.level * 5; // MÁS PUNTOS POR VICTORIA
-                
-                gameState.user.gold += goldReward;
-                gameState.user.airdrop_points += xpReward;
-                gameState.user.stats_total.total_victories++;
-                gameState.user.stats_total.current_streak++;
-                
-                if (gameState.user.stats_total.current_streak > gameState.user.stats_total.best_streak) {
-                    gameState.user.stats_total.best_streak = gameState.user.stats_total.current_streak;
-                }
-                
-                addLog(`🎉 ¡VICTORIA! +${goldReward} 💰 +${xpReward} ✨`, 'victory');
-                document.getElementById('modalMessage').innerHTML = `
-                    <div style="text-align: center; font-size: 18px; color: #44ff44;">
-                        <div>✅ ¡VICTORIA!</div>
-                        <div style="margin-top: 10px;">Nivel: ${gameState.user.level}</div>
-                        <div style="margin-top: 5px;">+${goldReward} Oro</div>
-                        <div>+${xpReward} Puntos</div>
-                        <div style="margin-top: 10px; font-size: 13px; color: #00ff88;">
-                            ⚔️ ${gameState.user.stats.attack} | 🛡️ ${gameState.user.stats.defense} | ❤️ ${gameState.user.stats.health}
-                        </div>
-                    </div>
-                `;
-            } else {
-                gameState.user.stats_total.total_defeats++;
-                gameState.user.stats_total.current_streak = 0;
-                
-                addLog(`💀 ¡DERROTA! Pero vuelves a la vida...`, 'damage');
-                document.getElementById('modalMessage').innerHTML = `
-                    <div style="text-align: center; font-size: 18px; color: #ff4444;">
-                        <div>❌ ¡DERROTA!</div>
-                        <div style="margin-top: 10px;">Intenta de nuevo</div>
-                        <div style="margin-top: 5px; font-size: 12px; color: #aaa;">
-                            Victorias: ${gameState.user.stats_total.total_victories}
-                        </div>
-                    </div>
-                `;
-            }
-            
-            // Reset batalla - RESTAURAR VIDA AL MÁXIMO
-            gameState.current_enemy = null;
-            gameState.user.stats.health = gameState.user.stats.health;
-            
-            document.getElementById('btnStart').style.display = 'block';
-            document.getElementById('btnAttack').style.display = 'none';
-            document.getElementById('enemySelect').style.display = 'block';
-            
-            // Guardar en backend
-            saveBattleResult(victory, goldReward, xpReward);
-            
-            updateUI();
-            document.getElementById('combatModal').classList.add('active');
-        }
-
-        function closeBattleModal() {
-            document.getElementById('combatModal').classList.remove('active');
-        }
-
-        // ========== MODULE: CITY SYSTEM ==========
-        const BUILDING_COOLDOWNS = {
-            granja: { gold: 50, points: 0, lastClaim: 0, cooldown: 3600000 }, // 1 hora en ms
-            mina: { gold: 100, points: 0, lastClaim: 0, cooldown: 3600000 },
-            templo: { gold: 0, points: 100, lastClaim: 0, cooldown: 3600000 },
-            torre: { gold: 150, points: 0, lastClaim: 0, cooldown: 3600000 },
-            castillo: { gold: 300, points: 0, lastClaim: 0, cooldown: 3600000 },
-            tienda: { gold: 0, points: 0, lastClaim: 0, cooldown: 3600000 }
+            document.getElementById('combat-modal').classList.remove('hidden');
+            document.getElementById('combat-player-name').textContent = "TÚ";
+            document.getElementById('combat-enemy-name').textContent = enemy.name;
+            updateCombatUI();
+            startCombatTimer();
         };
 
-        function getTimeUntilClaim(building) {
-            const now = Date.now();
-            const lastClaim = BUILDING_COOLDOWNS[building].lastClaim;
-            const cooldown = BUILDING_COOLDOWNS[building].cooldown;
-            const timeLeft = lastClaim + cooldown - now;
+        const updateCombatUI = () => {
+            const { player, enemy, round } = combatState;
             
-            if (timeLeft <= 0) return 0;
+            document.getElementById('combat-player-hp-text').textContent = `HP: ${player.hp}/${player.maxHP}`;
+            document.getElementById('combat-enemy-hp-text').textContent = `HP: ${enemy.hp}/${enemy.maxHP}`;
+            document.getElementById('combat-round').textContent = round;
             
-            const minutes = Math.ceil(timeLeft / 60000);
-            return minutes;
-        }
+            const playerHPPercent = (player.hp / player.maxHP) * 100;
+            const enemyHPPercent = (enemy.hp / enemy.maxHP) * 100;
+            
+            document.getElementById('combat-player-hp-bar').style.width = `${playerHPPercent}%`;
+            document.getElementById('combat-enemy-hp-bar').style.width = `${enemyHPPercent}%`;
+        };
 
-        function canClaimBuilding(building) {
-            return getTimeUntilClaim(building) <= 0;
-        }
+        const startCombatTimer = () => {
+            const timerInterval = setInterval(() => {
+                combatState.timer--;
+                document.getElementById('combat-timer').textContent = combatState.timer;
+                
+                if (combatState.timer <= 0) {
+                    clearInterval(timerInterval);
+                    endRound();
+                }
+            }, 1000);
+        };
 
-        function farmRewards(building) {
-            if (!canClaimBuilding(building)) {
-                const timeLeft = getTimeUntilClaim(building);
-                alert(`⏳ Debes esperar ${timeLeft} minutos para recolectar de nuevo`);
-                return;
-            }
-
-            const reward = BUILDING_COOLDOWNS[building];
+        window.playerAttack = async () => {
+            if (!combatState) return;
             
-            if (reward.gold === 0 && reward.points === 0) {
-                alert('🏪 Tienda disponible próximamente');
-                return;
-            }
-            
-            gameState.user.gold += reward.gold;
-            gameState.user.airdrop_points += reward.points;
-            
-            // Guardar tiempo de última recolección
-            BUILDING_COOLDOWNS[building].lastClaim = Date.now();
-            
-            updateUI();
-            alert(`🎉 ¡Recolección exitosa!\n+${reward.gold} 💰\n+${reward.points} ✨\nProxima recolección en 1 hora`);
-        }
-
-        // ========== MODULE: CHARACTER SYSTEM ==========
-        function increaseStat(stat) {
-            const statPoints = 1; // Requeriría puntos de habilidad en un juego completo
-            gameState.user.stats[stat] += statPoints;
-            updateUI();
-        }
-
-        // ========== MODULE: BACKEND API ==========
-        async function loadUserData() {
             try {
-                const tg = window.Telegram?.WebApp;
-                if (!tg) {
-                    console.log("Modo offline - usando datos locales");
-                    return;
+                const response = await fetch(`${API_URL}/api/pve/attack`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        attacker: combatState.player.stats,
+                        defender: combatState.enemy.stats
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.hit) {
+                    combatState.enemy.hp -= result.damage;
+                    logCombat(`Atacas: ${result.message}`, 'player');
+                } else {
+                    logCombat(result.message, 'player');
                 }
                 
-                const user = tg.initDataUnsafe?.user;
-                if (!user) return;
+                updateCombatUI();
                 
-                gameState.user.telegram_id = user.id;
-                gameState.user.username = user.username || user.first_name;
-                
-                // Aquí iría la llamada a tu API backend
-                // const response = await fetch(`${CONFIG.API_URL}/user/get`, {
-                //     method: 'POST',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     body: JSON.stringify({
-                //         telegram_id: user.id,
-                //         username: user.username,
-                //         first_name: user.first_name
-                //     })
-                // });
-                
-                updateUI();
+                if (combatState.enemy.hp <= 0) {
+                    endRound(true);
+                } else {
+                    setTimeout(enemyTurn, 1000);
+                }
             } catch (error) {
-                console.error("Error cargando datos:", error);
+                console.error("Attack error:", error);
             }
-        }
+        };
 
-        async function saveBattleResult(victory, goldEarned, xpEarned) {
+        window.playerDefend = () => {
+            combatState.playerDefending = true;
+            logCombat("Te preparas para defender...", 'player');
+            setTimeout(enemyTurn, 1000);
+        };
+
+        const enemyTurn = async () => {
+            if (!combatState) return;
+            
             try {
-                // Aquí guardarías el resultado en tu backend
-                // await fetch(`${CONFIG.API_URL}/battle/result`, {
-                //     method: 'POST',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     body: JSON.stringify({
-                //         telegram_id: gameState.user.telegram_id,
-                //         victory,
-                //         gold_earned: goldEarned,
-                //         xp_earned: xpEarned
-                //     })
-                // });
+                const defenderStats = combatState.playerDefending 
+                    ? { ...combatState.player.stats, endurance: combatState.player.stats.endurance * 2 }
+                    : combatState.player.stats;
                 
-                console.log("Batalla guardada:", { victory, goldEarned, xpEarned });
+                const response = await fetch(`${API_URL}/api/pve/attack`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        attacker: combatState.enemy.stats,
+                        defender: defenderStats
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.hit) {
+                    const finalDamage = combatState.playerDefending ? Math.floor(result.damage / 2) : result.damage;
+                    combatState.player.hp -= finalDamage;
+                    logCombat(`Enemigo ataca: ${finalDamage} de daño${combatState.playerDefending ? ' (DEFENDIDO)' : ''}`, 'enemy');
+                } else {
+                    logCombat("El enemigo falla su ataque", 'enemy');
+                }
+                
+                combatState.playerDefending = false;
+                updateCombatUI();
+                
+                if (combatState.player.hp <= 0) {
+                    endRound(false);
+                }
             } catch (error) {
-                console.error("Error guardando batalla:", error);
+                console.error("Enemy attack error:", error);
             }
-        }
+        };
 
-        // ========== MODULE: INITIALIZATION ==========
-        document.addEventListener('DOMContentLoaded', () => {
-            const tg = window.Telegram?.WebApp;
-            if (tg) tg.expand();
+        const endRound = (playerWon = null) => {
+            if (playerWon === null) {
+                // Time over - el que tenga más HP gana
+                playerWon = combatState.player.hp > combatState.enemy.hp;
+            }
             
-            loadUserData();
-            updateUI();
+            if (playerWon) {
+                combatState.playerWins++;
+                logCombat("¡Ganaste la ronda!", 'system');
+            } else {
+                combatState.enemyWins++;
+                logCombat("Perdiste la ronda", 'system');
+            }
             
-            console.log("✅ Pardo RPG Pro cargado");
-        });
+            // Verificar victoria final (2 de 3)
+            if (combatState.playerWins >= 2) {
+                endCombat(true);
+            } else if (combatState.enemyWins >= 2) {
+                endCombat(false);
+            } else {
+                // Siguiente ronda
+                combatState.round++;
+                combatState.timer = 60;
+                combatState.player.hp = combatState.player.maxHP;
+                combatState.enemy.hp = combatState.enemy.maxHP;
+                updateCombatUI();
+                startCombatTimer();
+            }
+        };
+
+        const endCombat = async (victory) => {
+            if (combatState.type === 'pve') {
+                try {
+                    const response = await fetch(`${API_URL}/api/pve/complete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            mission_id: combatState.missionId,
+                            user_id: userId,
+                            victory
+                        })
+                    });
+                    const data = await response.json();
+                    
+                    gameState.currentExp += data.exp;
+                    gameState.gold += data.gold;
+                    
+                    if (data.item) {
+                        gameState.inventory.push(data.item);
+                        showMessage(`¡Item conseguido: ${data.item.name}!`);
+                    }
+                    
+                    // Verificar subida de nivel
+                    while (gameState.currentExp >= gameState.expToNextLevel) {
+                        levelUp();
+                    }
+                    
+                    renderUI();
+                    saveCharacter();
+                } catch (error) {
+                    console.error("Complete mission error:", error);
+                }
+            }
+            
+            logCombat(victory ? "¡VICTORIA TOTAL!" : "DERROTA", 'system');
+            
+            setTimeout(() => {
+                document.getElementById('combat-modal').classList.add('hidden');
+                combatState = null;
+            }, 3000);
+        };
+
+        const logCombat = (message, type) => {
+            const log = document.getElementById('combat-log');
+            const color = type === 'player' ? 'text-green-400' : type === 'enemy' ? 'text-red-400' : 'text-yellow-400';
+            log.innerHTML += `<p class="${color}">${message}</p>`;
+            log.scrollTop = log.scrollHeight;
+        };
+
+        const levelUp = () => {
+            gameState.level++;
+            gameState.currentExp -= gameState.expToNextLevel;
+            gameState.expToNextLevel = Math.floor(100 * Math.pow(gameState.level, 1.5));
+            gameState.pointsToAllocate += 5;
+            
+            // +10 HP fijos por nivel
+            gameState.maxHP += 10;
+            gameState.currentHP = gameState.maxHP; // Restaurar HP al subir de nivel
+            
+            showMessage(`¡NIVEL ${gameState.level}! +5 puntos, +10 HP máximo`);
+        };
+
+        // ==================== MARKETPLACE ====================
+        let marketplaceData = {};
+
+        const loadMarketplace = async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/marketplace/items`);
+                marketplaceData = await response.json();
+                filterMarketplace('all');
+            } catch (error) {
+                console.error("Marketplace error:", error);
+                showMessage("Error al cargar tienda");
+            }
+        };
+
+        window.filterMarketplace = (type) => {
+            const container = document.getElementById('marketplace-items');
+            let items = [];
+            
+            if (type === 'all') {
+                items = Object.values(marketplaceData).flat();
+            } else {
+                items = marketplaceData[type] || [];
+            }
+            
+            // Ordenar por nivel (bajo a alto)
+            items.sort((a, b) => a.level - b.level);
+            
+            container.innerHTML = items.map(item => {
+                const canAfford = gameState.gold >= item.price;
+                const canEquip = gameState.level >= item.level;
+                const statsText = Object.entries(item.stats).map(([k, v]) => `+${v} ${k}`).join(', ');
+                
+                return `
+                    <div class="bg-gray-800 p-4 rounded-lg ${canAfford && canEquip ? 'hover:bg-gray-700' : 'opacity-60'}">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-lg">${item.name}</h3>
+                            <span class="text-xs bg-${item.rarity === 'Legendario' ? 'yellow' : item.rarity === 'Épico' ? 'purple' : item.rarity === 'Raro' ? 'blue' : 'gray'}-600 px-2 py-1 rounded">${item.rarity}</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-2">${statsText}</p>
+                        <div class="flex justify-between items-center">
+                            <span class="text-rpg-gold font-bold">💰 ${item.price}</span>
+                            <button onclick='buyItem(${JSON.stringify(item)})' 
+                                    class="px-4 py-2 rounded-lg font-bold ${canAfford && canEquip ? 'bg-rpg-accent hover:bg-blue-600' : 'bg-rpg-inactive cursor-not-allowed'}"
+                                    ${canAfford && canEquip ? '' : 'disabled'}>
+                                ${!canEquip ? `Nv.${item.level}` : !canAfford ? 'Sin oro' : 'COMPRAR'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.buyItem = (item) => {
+            if (gameState.gold < item.price) {
+                showMessage("Oro insuficiente");
+                return;
+            }
+            if (gameState.level < item.level) {
+                showMessage(`Nivel ${item.level} requerido`);
+                return;
+            }
+            
+            gameState.gold -= item.price;
+            gameState.inventory.push(item);
+            showMessage(`¡${item.name} comprado!`);
+            renderUI();
+            saveCharacter();
+            filterMarketplace('all'); // Refrescar vista
+        };
+
+        window.openGearModal = (slot) => {
+            // Filtrar items del inventario que pueden ir en este slot
+            const availableItems = gameState.inventory.filter(item => 
+                item.type === slot && item.level <= gameState.level
+            );
+            
+            if (availableItems.length === 0) {
+                showMessage(`No tienes ${slot} disponibles. Visita el Marketplace.`);
+                return;
+            }
+            
+            const modalHtml = `
+                <div class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center" id="gear-modal">
+                    <div class="bg-rpg-dark p-6 rounded-xl w-11/12 max-w-md">
+                        <h3 class="text-xl font-bold mb-4">Equipar ${slot}</h3>
+                        <div class="space-y-2 max-h-96 overflow-y-auto">
+                            ${availableItems.map((item, idx) => {
+                                const statsText = Object.entries(item.stats).map(([k, v]) => `+${v} ${k}`).join(', ');
+                                return `
+                                    <div class="bg-gray-700 p-3 rounded-lg hover:bg-gray-600 cursor-pointer" 
+                                         onclick="equipItem('${slot}', ${idx})">
+                                        <p class="font-bold">${item.name}</p>
+                                        <p class="text-sm text-gray-300">${statsText}</p>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        <button onclick="closeGearModal()" class="w-full mt-4 py-2 bg-rpg-accent rounded-lg">Cerrar</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        };
+
+        window.equipItem = (slot, itemIndex) => {
+            const availableItems = gameState.inventory.filter(item => 
+                item.type === slot && item.level <= gameState.level
+            );
+            
+            const item = availableItems[itemIndex];
+            
+            // Si hay algo equipado, devolverlo al inventario
+            if (gameState.equipped[slot]) {
+                gameState.inventory.push(gameState.equipped[slot]);
+            }
+            
+            // Equipar el nuevo item y quitarlo del inventario
+            gameState.equipped[slot] = item;
+            const invIndex = gameState.inventory.findIndex(i => 
+                i.name === item.name && i.type === item.type
+            );
+            if (invIndex !== -1) {
+                gameState.inventory.splice(invIndex, 1);
+            }
+            
+            showMessage(`¡${item.name} equipado!`);
+            closeGearModal();
+            renderUI();
+            saveCharacter();
+        };
+
+        window.closeGearModal = () => {
+            const modal = document.getElementById('gear-modal');
+            if (modal) modal.remove();
+        };
+
+        // ==================== PVP ====================
+        let pvpSearchInterval = null;
+
+        window.joinPVPQueue = async () => {
+            if (gameState.level < 10) {
+                showMessage("Nivel 10 requerido para PVP");
+                return;
+            }
+            
+            // Restaurar HP al 100% antes de buscar batalla
+            gameState.currentHP = gameState.maxHP;
+            renderUI();
+            
+            const btn = document.getElementById('pvp-join-btn');
+            btn.disabled = true;
+            btn.textContent = "BUSCANDO...";
+            
+            try {
+                pvpSearchInterval = setInterval(async () => {
+                    const response = await fetch(`${API_URL}/api/pvp/join_queue`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            user_id: userId,
+                            level: gameState.level,
+                            stats: calculateFinalStats()
+                        })
+                    });
+                    const data = await response.json();
+                    
+                    if (data.match_found) {
+                        clearInterval(pvpSearchInterval);
+                        btn.disabled = false;
+                        btn.textContent = "BUSCAR BATALLA";
+                        
+                        // Iniciar combate PVP
+                        startCombat({
+                            name: `Jugador Nv.${data.opponent.level}`,
+                            hp: data.opponent.stats.maxHP,
+                            power: data.opponent.stats.power,
+                            dexterity: data.opponent.stats.dexterity,
+                            endurance: data.opponent.stats.endurance
+                        }, 'pvp');
+                    }
+                }, 3000); // Buscar cada 3 segundos
+                
+                // Timeout de 30 segundos
+                setTimeout(() => {
+                    if (pvpSearchInterval) {
+                        clearInterval(pvpSearchInterval);
+                        btn.disabled = false;
+                        btn.textContent = "BUSCAR BATALLA";
+                        showMessage("No se encontró oponente. Intenta de nuevo.");
+                    }
+                }, 30000);
+                
+            } catch (error) {
+                console.error("PVP queue error:", error);
+                clearInterval(pvpSearchInterval);
+                btn.disabled = false;
+                btn.textContent = "BUSCAR BATALLA";
+                showMessage("Error al buscar batalla");
+            }
+        };
+
+        // ==================== UTILIDADES ====================
+        const showMessage = (msg) => {
+            const msgEl = document.getElementById('app-message');
+            msgEl.textContent = msg;
+            msgEl.classList.add('bg-rpg-accent');
+            setTimeout(() => msgEl.classList.remove('bg-rpg-accent'), 3000);
+        };
+
+        // Auto-guardado cada 30 segundos
+        setInterval(() => {
+            if (userId !== 'demo_user') saveCharacter();
+        }, 30000);
+
+        // ==================== INICIALIZACIÓN ====================
+        initFirebase();
     </script>
 </body>
 </html>
