@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from telegram import Bot, Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
 import requests
 
 # ==================== CONFIGURACIÓN ====================
@@ -33,9 +32,6 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
 CORS(app, resources={r"/api/*": {"origins": "*"}})
-
-# ==================== TELEGRAM BOT ====================
-bot = Bot(token=BOT_TOKEN)
 
 # ==================== CATÁLOGO DE MISIONES PVE ====================
 MISSIONS_CATALOG = {
@@ -275,6 +271,7 @@ def telegram_webhook():
     """Maneja updates de Telegram (comando /start)"""
     try:
         update_data = request.get_json()
+        logger.info(f"Webhook recibido: {update_data}")
         
         # Parsear el update
         if 'message' in update_data and 'text' in update_data['message']:
@@ -283,32 +280,33 @@ def telegram_webhook():
             username = update_data['message']['from'].get('username', 'Usuario')
             
             if text == '/start':
-                # Crear botón con WebApp
-                keyboard = {
-                    "inline_keyboard": [[{
-                        "text": "🎮 Jugar Pardo RPG",
-                        "web_app": {"url": GAME_HTML_URL}
-                    }]]
+                # Crear botón con WebApp usando la API directa de Telegram
+                url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+                
+                payload = {
+                    "chat_id": chat_id,
+                    "text": (
+                        f"¡Bienvenido {username}! 🚀\n\n"
+                        "🗡️ Nivel 1-10: Completa misiones PVE\n"
+                        "⚔️ Nivel 10+: Combate PVP en tiempo real\n\n"
+                        "Haz clic para empezar tu aventura."
+                    ),
+                    "reply_markup": {
+                        "inline_keyboard": [[{
+                            "text": "🎮 Jugar Pardo RPG",
+                            "web_app": {"url": GAME_HTML_URL}
+                        }]]
+                    }
                 }
                 
-                message = (
-                    f"¡Bienvenido {username}! 🚀\n\n"
-                    "🗡️ Nivel 1-10: Completa misiones PVE\n"
-                    "⚔️ Nivel 10+: Combate PVP en tiempo real\n\n"
-                    "Haz clic para empezar tu aventura."
-                )
-                
-                # Enviar mensaje con botón
-                bot.send_message(
-                    chat_id=chat_id,
-                    text=message,
-                    reply_markup=keyboard
-                )
+                # Enviar mensaje usando requests (síncrono)
+                response = requests.post(url, json=payload)
+                logger.info(f"Mensaje enviado: {response.status_code}")
         
         return "ok", 200
         
     except Exception as e:
-        logger.error(f"Error en webhook: {e}")
+        logger.error(f"Error en webhook: {e}", exc_info=True)
         return "ok", 200
 
 # ==================== CONFIGURAR WEBHOOK ====================
