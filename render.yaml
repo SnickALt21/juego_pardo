@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: pardo-rpg-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python juego_pardo.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: WEBHOOK_URL
+        sync: false
+      - key: GAME_HTML_URL
+        sync: false
